@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Font Awesome */
+@import '@fortawesome/fontawesome-free/css/all.min.css';
+
 /* ── reset & base ── */
 * {
   margin: 0;
@@ -12,9 +15,10 @@ html {
   scroll-behavior: smooth;
 }
 body {
+  font-family: 'Inter', sans-serif;
   background: #080b14;
   color: #edf2f7;
-  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
