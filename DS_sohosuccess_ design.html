@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Soho Success — Web · IT · Mobile</title>
+
+    <!-- Tailwind + Font Awesome + Google Fonts -->
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet" />
+
+    <style>
+        /* ── reset & base ── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #080b14;
+            color: #edf2f7;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* ── custom scrollbar ── */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f1a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #7c3aed, #2563eb);
+            border-radius: 12px;
+        }
+
+        /* ── glass utilities ── */
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .glass-light {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* ── animated gradient text ── */
+        .gradient-text {
+            background: linear-gradient(135deg, #a78bfa, #60a5fa, #34d399);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradShift 8s ease-in-out infinite alternate;
+        }
+        @keyframes gradShift {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        /* ── floating glow orbs ── */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.25;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── card hover lift ── */
+        .card-lift {
+            transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2), box-shadow 0.4s ease;
+        }
+        .card-lift:hover {
+            transform: translateY(-8px) scale(1.01);
+            box-shadow: 0 30px 50px -20px rgba(124, 58, 237, 0.30);
+        }
+
+        /* ── section title accent line ── */
+        .section-line {
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, #7c3aed, #2563eb);
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+
+        /* ── mobile nav toggle ── */
+        #mobile-menu {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: top;
+        }
+        #mobile-menu.hidden {
+            opacity: 0;
+            transform: scaleY(0.8) translateY(-10px);
+            pointer-events: none;
+        }
+        #mobile-menu:not(.hidden) {
+            opacity: 1;
+            transform: scaleY(1) translateY(0);
+            pointer-events: auto;
+        }
+
+        /* ── service icon ring ── */
+        .icon-ring {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.18), rgba(37, 99, 235, 0.18));
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 28px;
+            color: #a78bfa;
+            transition: all 0.3s ease;
+        }
+        .service-card:hover .icon-ring {
+            background: linear-gradient(135deg, #7c3aed, #2563eb);
+            color: #fff;
+            border-color: transparent;
+            transform: scale(1.05);
+            box-shadow: 0 12px 30px -10px rgba(124, 58, 237, 0.4);
+        }
+
+        /* ── tag pill ── */
+        .tag-pill {
+            display: inline-block;
+            padding: 4px 16px;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            background: rgba(124, 58, 237, 0.15);
+            color: #a78bfa;
+            border: 1px solid rgba(124, 58, 237, 0.15);
+        }
+
+        /* ── responsive tweaks ── */
+        @media (max-width: 640px) {
+            .hero-title {
+                font-size: 2.6rem;
+                line-height: 1.1;
+            }
+            .icon-ring {
+                width: 52px;
+                height: 52px;
+                font-size: 22px;
+                border-radius: 16px;
+            }
+        }
+
+        /* ── subtle shimmer for cards ── */
+        .shimmer-border {
+            position: relative;
+            overflow: hidden;
+        }
+        .shimmer-border::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══ ORBS (ambient glow) ═══ -->
+    <div class="orb w-[500px] h-[500px] bg-purple-600/30 top-[-10%] left-[-10%]"></div>
+    <div class="orb w-[600px] h-[600px] bg-blue-600/20 bottom-[-20%] right-[-10%]"></div>
+    <div class="orb w-[300px] h-[300px] bg-emerald-500/20 top-[40%] left-[50%] -translate-x-1/2"></div>
+
+    <!-- ═══ HEADER / NAV ═══ -->
+    <header class="fixed top-0 left-0 w-full z-50 glass border-b border-white/5">
+        <div class="max-w-7xl mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
+            <!-- Logo -->
+            <a href="#" class="flex items-center gap-2 text-xl font-extrabold tracking-tight">
+                <span class="gradient-text">Soho</span>
+                <span class="text-white/80 font-medium">Success</span>
+                <span class="text-xs font-mono text-white/30 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">v2.0</span>
+            </a>
+
+            <!-- Desktop Nav -->
+            <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-white/60">
+                <a href="#web" class="hover:text-white transition">Web</a>
+                <a href="#it" class="hover:text-white transition">IT</a>
+                <a href="#mobile" class="hover:text-white transition">Mobile</a>
+                <a href="#contact" class="hover:text-white transition">Contact</a>
+            </nav>
+
+            <!-- CTA + Mobile toggle -->
+            <div class="flex items-center gap-4">
+                <a href="#contact"
+                class="hidden md:inline-block px-5 py-2 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-semibold shadow-lg shadow-purple-600/25 hover:shadow-purple-600/40 transition">
+                Let's talk
+            </a>
+            <button id="menu-btn" class="md:hidden text-white/70 hover:text-white text-xl" aria-label="Menu">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile Nav -->
+    <div id="mobile-menu" class="md:hidden glass-dark border-b border-white/5 px-6 py-5 hidden">
+        <div class="flex flex-col gap-4 text-sm font-medium text-white/70">
+            <a href="#web" class="hover:text-white transition py-1 border-b border-white/5">Web Development</a>
+            <a href="#it" class="hover:text-white transition py-1 border-b border-white/5">IT Services</a>
+            <a href="#mobile" class="hover:text-white transition py-1 border-b border-white/5">Mobile Apps</a>
+            <a href="#contact" class="hover:text-white transition py-1">Contact</a>
+            <a href="#contact" class="mt-2 inline-block text-center px-5 py-2.5 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-semibold shadow-lg shadow-purple-600/25">
+                Start a project
+            </a>
+        </div>
+    </div>
+</header>
+
+<!-- ═══ HERO ═══ -->
+<section class="relative pt-32 pb-20 md:pt-44 md:pb-28 px-6 md:px-10 max-w-7xl mx-auto">
+    <div class="relative z-10 max-w-4xl">
+        <!-- badge -->
+        <div class="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 text-xs font-medium text-white/50 mb-6">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            Award-winning design · Next.js 13
+        </div>
+
+        <h1 class="hero-title text-5xl sm:text-6xl md:text-7xl font-extrabold leading-[1.08] tracking-tight">
+            Building digital
+            <br />
+            <span class="gradient-text">experiences</span> that
+            <br class="hidden sm:block" />
+            <span class="text-white/90">win awards.</span>
+        </h1>
+
+        <p class="mt-6 text-lg md:text-xl text-white/50 max-w-2xl leading-relaxed">
+            From high-performance websites and mobile apps to enterprise-grade
+            IT infrastructure — we engineer success for modern businesses.
+        </p>
+
+        <div class="mt-10 flex flex-wrap gap-4">
+            <a href="#contact"
+            class="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold shadow-2xl shadow-purple-600/30 hover:shadow-purple-600/50 transition">
+            <i class="fa-regular fa-message"></i> Start your project
+        </a>
+        <a href="#web"
+        class="inline-flex items-center gap-2 px-8 py-3.5 rounded-full border border-white/10 text-white/70 hover:bg-white/5 hover:text-white transition">
+        <i class="fa-regular fa-eye"></i> View work
+    </a>
+</div>
+
+<!-- stats -->
+<div class="mt-14 flex flex-wrap gap-8 md:gap-12 text-white/40">
+    <div>
+        <span class="block text-2xl font-bold text-white">12+</span>
+        <span class="text-sm">Web projects</span>
+    </div>
+    <div>
+        <span class="block text-2xl font-bold text-white">8+</span>
+        <span class="text-sm">IT deployments</span>
+    </div>
+    <div>
+        <span class="block text-2xl font-bold text-white">4+</span>
+        <span class="text-sm">Mobile apps</span>
+    </div>
+    <div>
+        <span class="block text-2xl font-bold text-white">100%</span>
+        <span class="text-sm">Client satisfaction</span>
+    </div>
+</div>
+</div>
+</section>
+
+<!-- ═══ WEB DEVELOPMENT ═══ -->
+<section id="web" class="relative px-6 md:px-10 py-20 md:py-28 max-w-7xl mx-auto">
+    <div class="relative z-10">
+        <div class="flex items-center gap-4 mb-2">
+            <span class="tag-pill"><i class="fa-solid fa-code mr-1.5"></i> Web</span>
+            <span class="text-xs text-white/20 font-mono">/ websites & landing pages</span>
+        </div>
+        <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight">
+            Websites &amp; <span class="gradient-text">Landing Pages</span>
+        </h2>
+        <div class="section-line"></div>
+        <p class="mt-4 text-white/50 max-w-2xl text-lg">
+            High-conversion, award-winning designs built with Next.js 13, Tailwind,
+            and modern motion — tailored to your brand.
+        </p>
+    </div>
+
+    <!-- project grid -->
+    <div class="relative z-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
+        <div class="glass card-lift rounded-2xl p-6 shimmer-border">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-3xl">✨</span>
+                <span class="text-xs font-mono text-white/20">2025</span>
+            </div>
+            <h3 class="text-xl font-bold">Nova Studio</h3>
+            <p class="text-white/40 text-sm mt-1">Creative agency landing page</p>
+            <div class="flex flex-wrap gap-1.5 mt-4">
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">Next.js 13</span>
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">Framer Motion</span>
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">Tailwind</span>
+            </div>
+            <a href="#" class="inline-block mt-5 text-sm text-white/40 hover:text-white transition"><i class="fa-regular fa-arrow-right"></i> Case study</a>
+        </div>
+
+        <div class="glass card-lift rounded-2xl p-6 shimmer-border">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-3xl">🚀</span>
+                <span class="text-xs font-mono text-white/20">2024</span>
+            </div>
+            <h3 class="text-xl font-bold">LaunchPad</h3>
+            <p class="text-white/40 text-sm mt-1">SaaS product homepage</p>
+            <div class="flex flex-wrap gap-1.5 mt-4">
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">Next.js 13</span>
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">GSAP</span>
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">Sanity</span>
+            </div>
+            <a href="#" class="inline-block mt-5 text-sm text-white/40 hover:text-white transition"><i class="fa-regular fa-arrow-right"></i> Case study</a>
+        </div>
+
+        <div class="glass card-lift rounded-2xl p-6 shimmer-border sm:col-span-2 lg:col-span-1">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-3xl">🏆</span>
+                <span class="text-xs font-mono text-white/20">2024</span>
+            </div>
+            <h3 class="text-xl font-bold">Apex Realty</h3>
+            <p class="text-white/40 text-sm mt-1">Award-winning real estate portal</p>
+            <div class="flex flex-wrap gap-1.5 mt-4">
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">Next.js 13</span>
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">Mapbox</span>
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">Radix UI</span>
+            </div>
+            <a href="#" class="inline-block mt-5 text-sm text-white/40 hover:text-white transition"><i class="fa-regular fa-arrow-right"></i> Case study</a>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ IT SERVICES ═══ -->
+<section id="it" class="relative px-6 md:px-10 py-20 md:py-28 max-w-7xl mx-auto">
+    <div class="relative z-10">
+        <div class="flex items-center gap-4 mb-2">
+            <span class="tag-pill"><i class="fa-solid fa-server mr-1.5"></i> IT</span>
+            <span class="text-xs text-white/20 font-mono">/ infrastructure & networking</span>
+        </div>
+        <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight">
+            IT <span class="gradient-text">Infrastructure</span>
+        </h2>
+        <div class="section-line"></div>
+        <p class="mt-4 text-white/50 max-w-2xl text-lg">
+            Custom Cat 6+ cabling, network setup, and maintenance for small to
+            medium offices — built for speed and reliability.
+        </p>
+    </div>
+
+    <div class="relative z-10 grid md:grid-cols-2 gap-6 mt-12">
+        <!-- card 1 -->
+        <div class="glass card-lift rounded-2xl p-7 shimmer-border flex flex-col">
+            <div class="icon-ring mb-5">
+                <i class="fa-solid fa-network-wired"></i>
+            </div>
+            <h3 class="text-xl font-bold">Cat 6+ Cabling</h3>
+            <p class="text-white/40 text-sm mt-1 leading-relaxed">
+                High-speed structured cabling for small to medium offices.
+                Future-proof your network with certified Cat 6 and Cat 6A
+                installations.
+            </p>
+            <ul class="mt-4 space-y-2 text-sm text-white/30">
+                <li class="flex items-center gap-2"><i class="fa-regular fa-circle-check text-emerald-400/70"></i> Up to 10 Gbps throughput</li>
+                <li class="flex items-center gap-2"><i class="fa-regular fa-circle-check text-emerald-400/70"></i> Shielded &amp; plenum-rated options</li>
+                <li class="flex items-center gap-2"><i class="fa-regular fa-circle-check text-emerald-400/70"></i> Rack &amp; patch panel termination</li>
+            </ul>
+        </div>
+
+        <!-- card 2 -->
+        <div class="glass card-lift rounded-2xl p-7 shimmer-border flex flex-col">
+            <div class="icon-ring mb-5">
+                <i class="fa-solid fa-wifi"></i>
+            </div>
+            <h3 class="text-xl font-bold">Network Setup &amp; Maintenance</h3>
+            <p class="text-white/40 text-sm mt-1 leading-relaxed">
+                Full network design, configuration, and ongoing maintenance.
+                From routers and switches to firewalls and VPNs — we keep you
+                connected.
+            </p>
+            <ul class="mt-4 space-y-2 text-sm text-white/30">
+                <li class="flex items-center gap-2"><i class="fa-regular fa-circle-check text-emerald-400/70"></i> Site survey &amp; topology design</li>
+                <li class="flex items-center gap-2"><i class="fa-regular fa-circle-check text-emerald-400/70"></i> Firewall &amp; security configuration</li>
+                <li class="flex items-center gap-2"><i class="fa-regular fa-circle-check text-emerald-400/70"></i> 24/7 monitoring &amp; support</li>
+            </ul>
+        </div>
+
+        <!-- extra highlight: stats bar -->
+        <div class="md:col-span-2 glass-dark rounded-2xl p-6 flex flex-wrap items-center justify-between gap-4 border border-white/5">
+            <div class="flex items-center gap-4">
+                <i class="fa-solid fa-bolt text-2xl text-yellow-400/60"></i>
+                <span class="text-sm font-medium text-white/60">Typical deployment:</span>
+                <span class="text-sm text-white/30">2 – 5 days · zero downtime</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-xs font-mono text-white/20"><i class="fa-regular fa-circle-check text-emerald-400/50 mr-1"></i> 8+ offices deployed</span>
+                <span class="text-xs font-mono text-white/20"><i class="fa-regular fa-star text-amber-400/50 mr-1"></i> 100% uptime SLA</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ MOBILE APPS ═══ -->
+<section id="mobile" class="relative px-6 md:px-10 py-20 md:py-28 max-w-7xl mx-auto">
+    <div class="relative z-10">
+        <div class="flex items-center gap-4 mb-2">
+            <span class="tag-pill"><i class="fa-solid fa-mobile-screen-button mr-1.5"></i> Mobile</span>
+            <span class="text-xs text-white/20 font-mono">/ apps for iOS & Android</span>
+        </div>
+        <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight">
+            Mobile <span class="gradient-text">Applications</span>
+        </h2>
+        <div class="section-line"></div>
+        <p class="mt-4 text-white/50 max-w-2xl text-lg">
+            Native and cross-platform apps built with React Native, Flutter, and
+            Swift — designed to delight users and drive engagement.
+        </p>
+    </div>
+
+    <div class="relative z-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
+        <div class="glass card-lift rounded-2xl p-6 shimmer-border">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="text-2xl">📱</span>
+                <span class="text-xs font-mono text-white/20">React Native</span>
+            </div>
+            <h3 class="text-xl font-bold">FitTrack</h3>
+            <p class="text-white/40 text-sm mt-1">Health &amp; fitness companion</p>
+            <div class="flex flex-wrap gap-1.5 mt-4">
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">iOS</span>
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">Android</span>
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">Expo</span>
+            </div>
+            <a href="#" class="inline-block mt-5 text-sm text-white/40 hover:text-white transition"><i class="fa-regular fa-arrow-right"></i> Learn more</a>
+        </div>
+
+        <div class="glass card-lift rounded-2xl p-6 shimmer-border">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="text-2xl">💬</span>
+                <span class="text-xs font-mono text-white/20">Flutter</span>
+            </div>
+            <h3 class="text-xl font-bold">TalkSpace</h3>
+            <p class="text-white/40 text-sm mt-1">Real-time messaging &amp; voice</p>
+            <div class="flex flex-wrap gap-1.5 mt-4">
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">iOS</span>
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">Android</span>
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">WebRTC</span>
+            </div>
+            <a href="#" class="inline-block mt-5 text-sm text-white/40 hover:text-white transition"><i class="fa-regular fa-arrow-right"></i> Learn more</a>
+        </div>
+
+        <div class="glass card-lift rounded-2xl p-6 shimmer-border sm:col-span-2 lg:col-span-1">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="text-2xl">🛍️</span>
+                <span class="text-xs font-mono text-white/20">SwiftUI</span>
+            </div>
+            <h3 class="text-xl font-bold">ShopLocal</h3>
+            <p class="text-white/40 text-sm mt-1">Marketplace for local vendors</p>
+            <div class="flex flex-wrap gap-1.5 mt-4">
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">iOS</span>
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">SwiftUI</span>
+                <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5">Stripe</span>
+            </div>
+            <a href="#" class="inline-block mt-5 text-sm text-white/40 hover:text-white transition"><i class="fa-regular fa-arrow-right"></i> Learn more</a>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ CONTACT / CTA ═══ -->
+<section id="contact" class="relative px-6 md:px-10 py-20 md:py-28 max-w-7xl mx-auto">
+    <div class="relative z-10 glass rounded-3xl p-8 md:p-14 border border-white/5 shadow-2xl shadow-purple-600/5">
+        <div class="grid md:grid-cols-5 gap-10 items-center">
+            <div class="md:col-span-3">
+                <span class="tag-pill mb-3 inline-block"><i class="fa-regular fa-paper-plane mr-1.5"></i> Let's build</span>
+                <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">
+                    Ready to create something <span class="gradient-text">award‑winning</span>?
+                </h2>
+                <p class="mt-3 text-white/50 max-w-xl text-lg">
+                    Whether it's a website, mobile app, or a full IT infrastructure —
+                    let's talk about your next project.
+                </p>
+                <div class="flex flex-wrap gap-4 mt-6">
+                    <a href="#" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition">
+                        <i class="fa-regular fa-envelope"></i> hi@sohosuccess.dev
+                    </a>
+                    <a href="#" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition">
+                        <i class="fa-regular fa-calendar"></i> Book a call
+                    </a>
+                </div>
+            </div>
+            <div class="md:col-span-2 flex flex-col gap-3 text-sm text-white/30">
+                <div class="flex items-center gap-3 border-b border-white/5 pb-3">
+                    <i class="fa-regular fa-circle-check text-emerald-400/60"></i>
+                    <span>12+ web projects delivered</span>
+                </div>
+                <div class="flex items-center gap-3 border-b border-white/5 pb-3">
+                    <i class="fa-regular fa-circle-check text-emerald-400/60"></i>
+                    <span>8+ IT networks deployed</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <i class="fa-regular fa-circle-check text-emerald-400/60"></i>
+                    <span>4+ mobile apps in production</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="relative border-t border-white/5 px-6 md:px-10 py-8 max-w-7xl mx-auto text-sm text-white/20">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <span>© 2026 Soho Success — built with Next.js 13 &amp; award-winning design</span>
+        <div class="flex items-center gap-5">
+            <a href="#" class="hover:text-white/50 transition"><i class="fa-brands fa-github"></i></a>
+            <a href="#" class="hover:text-white/50 transition"><i class="fa-brands fa-x-twitter"></i></a>
+            <a href="#" class="hover:text-white/50 transition"><i class="fa-brands fa-linkedin-in"></i></a>
+            <a href="#" class="hover:text-white/50 transition"><i class="fa-brands fa-dribbble"></i></a>
+        </div>
+    </div>
+</footer>
+
+<!-- ═══ MOBILE MENU TOGGLE ═══ -->
+<script>
+    const btn = document.getElementById('menu-btn');
+    const menu = document.getElementById('mobile-menu');
+    let open = false;
+
+    btn.addEventListener('click', () => {
+        open = !open;
+        menu.classList.toggle('hidden', !open);
+        btn.innerHTML = open ? '<i class="fa-solid fa-xmark"></i>' : '<i class="fa-solid fa-bars"></i>';
+    });
+
+    // close on link click (mobile)
+    document.querySelectorAll('#mobile-menu a').forEach(link => {
+        link.addEventListener('click', () => {
+            open = false;
+            menu.classList.add('hidden');
+            btn.innerHTML = '<i class="fa-solid fa-bars"></i>';
+        });
+    });
+</script>
+
+</body>
+</html>
