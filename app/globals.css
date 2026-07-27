@@ -2,10 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Font Awesome */
 @import '@fortawesome/fontawesome-free/css/all.min.css';
 
-/* ── reset & base ── */
 * {
   margin: 0;
   padding: 0;
@@ -21,8 +19,6 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
-
-/* ── custom scrollbar ── */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -33,8 +29,6 @@ body {
   background: linear-gradient(180deg, #7c3aed, #2563eb);
   border-radius: 12px;
 }
-
-/* ── glass utilities ── */
 .glass {
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(14px);
@@ -53,8 +47,6 @@ body {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
-
-/* ── animated gradient text ── */
 .gradient-text {
   background: linear-gradient(135deg, #a78bfa, #60a5fa, #34d399);
   background-size: 300% 300%;
@@ -68,8 +60,6 @@ body {
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
-
-/* ── floating glow orbs ── */
 .orb {
   position: absolute;
   border-radius: 50%;
@@ -78,8 +68,6 @@ body {
   pointer-events: none;
   z-index: 0;
 }
-
-/* ── card hover lift ── */
 .card-lift {
   transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2), box-shadow 0.4s ease;
 }
@@ -87,8 +75,6 @@ body {
   transform: translateY(-8px) scale(1.01);
   box-shadow: 0 30px 50px -20px rgba(124, 58, 237, 0.30);
 }
-
-/* ── section title accent line ── */
 .section-line {
   width: 60px;
   height: 4px;
@@ -96,8 +82,6 @@ body {
   border-radius: 4px;
   margin-top: 8px;
 }
-
-/* ── service icon ring ── */
 .icon-ring {
   display: inline-flex;
   align-items: center;
@@ -118,8 +102,6 @@ body {
   transform: scale(1.05);
   box-shadow: 0 12px 30px -10px rgba(124, 58, 237, 0.4);
 }
-
-/* ── tag pill ── */
 .tag-pill {
   display: inline-block;
   padding: 4px 16px;
@@ -131,8 +113,6 @@ body {
   color: #a78bfa;
   border: 1px solid rgba(124, 58, 237, 0.15);
 }
-
-/* ── subtle shimmer for cards ── */
 .shimmer-border {
   position: relative;
   overflow: hidden;
@@ -150,8 +130,6 @@ body {
   mask-composite: exclude;
   pointer-events: none;
 }
-
-/* ── responsive tweaks ── */
 @media (max-width: 640px) {
   .hero-title { font-size: 2.6rem; line-height: 1.1; }
   .icon-ring { width: 52px; height: 52px; font-size: 22px; border-radius: 16px; }
