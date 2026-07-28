@@ -1,24 +1,29 @@
-import { getAllProjects } from '@/lib/content';
-import Link from 'next/link';
+import { getAllProjects } from "@/lib/content";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import Hero from "@/components/sections/Hero";
+import WebSection from "@/components/sections/WebSection";
+import ITSection from "@/components/sections/ITSection";
+import MobileSection from "@/components/sections/MobileSection";
+import ContactSection from "@/components/sections/ContactSection";
 
-export default function WebProjects() {
-  const projects = getAllProjects().filter(p => p.category === 'web');
+export default async function Home() {
+  const webProjects = getAllProjects().filter((p) => p.category === "web");
+
   return (
-    <div className="max-w-6xl mx-auto px-6 py-20">
-      <h1 className="text-4xl font-bold">Web Projects</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-        {projects.map(({ slug, frontmatter }) => (
-          <Link key={slug} href={`/web/${slug}`} className="p-6 bg-white/5 rounded-2xl border border-white/10 hover:border-purple-500 transition">
-            <h2 className="text-2xl font-semibold">{frontmatter.title}</h2>
-            <p className="text-white/50 mt-2">{frontmatter.description}</p>
-            <div className="flex flex-wrap gap-2 mt-4">
-              {frontmatter.tech.map((tech: string) => (
-                <span key={tech} className="text-xs bg-white/10 px-2 py-1 rounded-full">{tech}</span>
-              ))}
-            </div>
-          </Link>
-        ))}
-      </div>
-    </div>
+    <main className="relative">
+      {/* Orbs */}
+      <div className="orb w-[500px] h-[500px] bg-purple-600/30 top-[-10%] left-[-10%] fixed"></div>
+      <div className="orb w-[600px] h-[600px] bg-blue-600/20 bottom-[-20%] right-[-10%] fixed"></div>
+      <div className="orb w-[300px] h-[300px] bg-emerald-500/20 top-[40%] left-[50%] -translate-x-1/2 fixed"></div>
+
+      <Header />
+      <Hero projectCount={webProjects.length} />
+      <WebSection projects={webProjects} />
+      <ITSection />
+      <MobileSection />
+      <ContactSection />
+      <Footer />
+    </main>
   );
 }
