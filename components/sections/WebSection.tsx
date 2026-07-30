@@ -44,7 +44,7 @@ export default function WebSection({ projects }: WebSectionProps) {
           <Link
             key={slug}
             href={`/web/${slug}`}
-            className="glass card-lift rounded-2xl overflow-hidden hover:no-underline hover:shadow-xl transition-shadow duration-300"
+            className="glass card-lift rounded-2xl shimmer-border transition-shadow duration-300 hover:no-underline hover:shadow-[0_12px_30px_-10px_rgba(124,58,237,0.6)]"
           >
             {/* Image */}
             <div className="relative aspect-[4/5] bg-white/5">
