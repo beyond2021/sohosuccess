@@ -10,11 +10,9 @@ interface WebSectionProps {
   }[];
 }
 
+const FALLBACK = "/projects/web/fallback.jpg";
+
 export default function WebSection({ projects }: WebSectionProps) {
-  console.log(
-    "images:",
-    projects.map((p) => p.frontmatter.image),
-  );
   return (
     <section
       id="web"
@@ -26,7 +24,7 @@ export default function WebSection({ projects }: WebSectionProps) {
             <i className="fa-solid fa-code mr-1.5"></i> Web
           </span>
           <span className="text-xs text-white/20 font-mono">
-            / websites & landing pages
+            / websites &amp; landing pages
           </span>
         </div>
         <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
@@ -44,16 +42,18 @@ export default function WebSection({ projects }: WebSectionProps) {
           <Link
             key={slug}
             href={`/web/${slug}`}
-            className="glass card-lift rounded-2xl shimmer-border transition-shadow duration-300 hover:no-underline hover:shadow-[0_12px_30px_-10px_rgba(124,58,237,0.6)]"
+            /* "group" is what lets the children react to the card's hover.
+               The shadow colour is the same violet as .icon-ring uses. */
+            className="group glass card-lift rounded-2xl overflow-hidden shimmer-border transition-shadow duration-300 hover:no-underline hover:shadow-[0_12px_30px_-10px_rgba(124,58,237,0.6)]"
           >
             {/* Image */}
             <div className="relative aspect-[4/5] bg-white/5">
               <img
-                src={frontmatter.image || "/projects/web/fallback.jpg"}
+                src={frontmatter.image || FALLBACK}
                 alt={frontmatter.title}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  e.currentTarget.src = "/projects/web/fallback.jpg";
+                  e.currentTarget.src = FALLBACK;
                 }}
               />
             </div>
@@ -61,7 +61,7 @@ export default function WebSection({ projects }: WebSectionProps) {
             {/* Text */}
             <div className="p-5">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="text-xl font-bold truncate">
+                <h3 className="text-xl font-bold truncate transition-all duration-300 group-hover:text-violet-400 group-hover:drop-shadow-[0_0_8px_rgba(124,58,237,0.8)]">
                   {frontmatter.title}
                 </h3>
                 <span className="text-xs font-mono text-white/20">
@@ -81,7 +81,7 @@ export default function WebSection({ projects }: WebSectionProps) {
                   </span>
                 ))}
               </div>
-              <span className="inline-block mt-4 text-sm text-white/40 hover:text-white transition">
+              <span className="inline-block mt-4 text-sm text-white/40 transition-all duration-300 group-hover:text-violet-400 group-hover:drop-shadow-[0_0_6px_rgba(124,58,237,0.7)]">
                 <i className="fa-regular fa-arrow-right"></i> Case study
               </span>
             </div>
