@@ -18,7 +18,7 @@ export default async function Home() {
 
       <Header />
       <Hero projectCount={webProjects.length} />
-      <WebSection projects={webProjects} />
+      
       <ITSection />
       <MobileSection />
       <ContactSection />

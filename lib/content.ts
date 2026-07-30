@@ -15,7 +15,7 @@ const ProjectFrontmatterSchema = z.object({
 export type ProjectFrontmatter = z.infer<typeof ProjectFrontmatterSchema>;
 
 export function getAllProjects() {
-  console.log('✅ getAllProjects() is running');
+  console.log("✅ getAllProjects() is running");
   const projectsDir = path.join(process.cwd(), "content/projects");
   const categories = fs.readdirSync(projectsDir);
   const results = [];
@@ -42,7 +42,12 @@ export function getAllProjects() {
           const [key, ...val] = line.split(":");
           if (!key) return acc;
           const trimmedKey = key.trim();
-          let parsedVal: string | number | string[] = val.join(":").trim();
+          let parsedVal: string | number | string[] = val
+            .join(":")
+            .replace(/\s+#.*$/, "") // strip trailing YAML comments
+            .replace(/\r/g, "") // strip CR from CRLF files
+            .trim();
+
           if (parsedVal.startsWith("[") && parsedVal.endsWith("]")) {
             parsedVal = parsedVal
               .slice(1, -1)

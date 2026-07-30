@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { ProjectFrontmatter } from "@/lib/content";
 
@@ -9,6 +11,10 @@ interface WebSectionProps {
 }
 
 export default function WebSection({ projects }: WebSectionProps) {
+  console.log(
+    "images:",
+    projects.map((p) => p.frontmatter.image),
+  );
   return (
     <section
       id="web"
@@ -46,6 +52,9 @@ export default function WebSection({ projects }: WebSectionProps) {
                 src={frontmatter.image || "/projects/web/fallback.jpg"}
                 alt={frontmatter.title}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = "/projects/web/fallback.jpg";
+                }}
               />
             </div>
 
