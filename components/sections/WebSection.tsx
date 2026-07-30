@@ -33,7 +33,7 @@ export default function WebSection({ projects }: WebSectionProps) {
         </p>
       </div>
 
-      <div className="relative z-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
+      <div className="relative z-10 grid sm:grid-cols-2 lg:grid-cols-5 gap-6 mt-12">
         {projects.map(({ slug, frontmatter }) => (
           <Link
             key={slug}
@@ -41,7 +41,7 @@ export default function WebSection({ projects }: WebSectionProps) {
             className="glass card-lift rounded-2xl overflow-hidden hover:no-underline hover:shadow-xl transition-shadow duration-300"
           >
             {/* Image */}
-            <div className="relative aspect-[3/4] bg-white/5">
+            <div className="relative aspect-[4/5] bg-white/5">
               <img
                 src={frontmatter.image || "/projects/web/fallback.jpg"}
                 alt={frontmatter.title}
