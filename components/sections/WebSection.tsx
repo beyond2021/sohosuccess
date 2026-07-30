@@ -38,31 +38,44 @@ export default function WebSection({ projects }: WebSectionProps) {
           <Link
             key={slug}
             href={`/web/${slug}`}
-            className="glass card-lift rounded-2xl p-6 shimmer-border hover:no-underline"
+            className="glass card-lift rounded-2xl overflow-hidden hover:no-underline hover:shadow-xl transition-shadow duration-300"
           >
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-3xl">✨</span>
-              <span className="text-xs font-mono text-white/20">
-                {frontmatter.year}
+            {/* Image */}
+            <div className="relative aspect-[3/4] bg-white/5">
+              <img
+                src={frontmatter.image || "/projects/web/fallback.jpg"}
+                alt={frontmatter.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            {/* Text */}
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-xl font-bold truncate">
+                  {frontmatter.title}
+                </h3>
+                <span className="text-xs font-mono text-white/20">
+                  {frontmatter.year}
+                </span>
+              </div>
+              <p className="text-white/40 text-sm line-clamp-2">
+                {frontmatter.description}
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {frontmatter.tech.slice(0, 3).map((tech: string) => (
+                  <span
+                    key={tech}
+                    className="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5"
+                  >
+                    {tech}
+                  </span>
+                ))}
+              </div>
+              <span className="inline-block mt-4 text-sm text-white/40 hover:text-white transition">
+                <i className="fa-regular fa-arrow-right"></i> Case study
               </span>
             </div>
-            <h3 className="text-xl font-bold">{frontmatter.title}</h3>
-            <p className="text-white/40 text-sm mt-1">
-              {frontmatter.description}
-            </p>
-            <div className="flex flex-wrap gap-1.5 mt-4">
-              {frontmatter.tech.slice(0, 3).map((tech: string) => (
-                <span
-                  key={tech}
-                  className="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5"
-                >
-                  {tech}
-                </span>
-              ))}
-            </div>
-            <span className="inline-block mt-5 text-sm text-white/40 hover:text-white transition">
-              <i className="fa-regular fa-arrow-right"></i> Case study
-            </span>
           </Link>
         ))}
       </div>
