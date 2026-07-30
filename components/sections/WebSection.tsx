@@ -39,53 +39,74 @@ export default function WebSection({ projects }: WebSectionProps) {
 
       <div className="relative z-10 grid sm:grid-cols-2 lg:grid-cols-5 gap-6 mt-12">
         {projects.map(({ slug, frontmatter }) => (
-          <Link
-            key={slug}
-            href={`/web/${slug}`}
-            /* "group" is what lets the children react to the card's hover.
-               The shadow colour is the same violet as .icon-ring uses. */
-            className="group glass card-lift rounded-2xl overflow-hidden shimmer-border transition-shadow duration-300 hover:no-underline hover:shadow-[0_12px_30px_-10px_rgba(124,58,237,0.6)]"
-          >
-            {/* Image */}
-            <div className="relative aspect-[4/5] bg-white/5">
-              <img
-                src={frontmatter.image || FALLBACK}
-                alt={frontmatter.title}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = FALLBACK;
-                }}
-              />
-            </div>
+          /* HTML forbids an <a> inside an <a>, so the card is a div holding two
+             sibling links: the body goes to the case study, the corner icon goes
+             to the live site. "group" lives here so both react to the hover. */
+          <div key={slug} className="group relative">
+            {frontmatter.url && (
+              <a
+                href={frontmatter.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Visit ${frontmatter.title} live site`}
+                title="Visit live site"
+                className="absolute top-3 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-full
+                           bg-black/50 backdrop-blur-sm border border-white/10 text-white/60
+                           opacity-0 transition-all duration-300
+                           hover:bg-violet-600 hover:text-white hover:border-transparent
+                           group-hover:opacity-100 focus:opacity-100"
+              >
+                <i className="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+              </a>
+            )}
 
-            {/* Text */}
-            <div className="p-5">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-xl font-bold truncate transition-all duration-300 group-hover:text-violet-400 group-hover:drop-shadow-[0_0_8px_rgba(124,58,237,0.8)]">
-                  {frontmatter.title}
-                </h3>
-                <span className="text-xs font-mono text-white/20">
-                  {frontmatter.year}
+            <Link
+              href={`/web/${slug}`}
+              className="block glass card-lift rounded-2xl overflow-hidden shimmer-border
+                         transition-shadow duration-300 hover:no-underline
+                         hover:shadow-[0_12px_30px_-10px_rgba(124,58,237,0.6)]"
+            >
+              {/* Image */}
+              <div className="relative aspect-[4/5] bg-white/5">
+                <img
+                  src={frontmatter.image || FALLBACK}
+                  alt={frontmatter.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = FALLBACK;
+                  }}
+                />
+              </div>
+
+              {/* Text */}
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-xl font-bold truncate transition-all duration-300 group-hover:text-violet-400 group-hover:drop-shadow-[0_0_8px_rgba(124,58,237,0.8)]">
+                    {frontmatter.title}
+                  </h3>
+                  <span className="text-xs font-mono text-white/20">
+                    {frontmatter.year}
+                  </span>
+                </div>
+                <p className="text-white/40 text-sm line-clamp-2">
+                  {frontmatter.description}
+                </p>
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {frontmatter.tech.slice(0, 3).map((tech: string) => (
+                    <span
+                      key={tech}
+                      className="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5"
+                    >
+                      {tech}
+                    </span>
+                  ))}
+                </div>
+                <span className="inline-block mt-4 text-sm text-white/40 transition-all duration-300 group-hover:text-violet-400 group-hover:drop-shadow-[0_0_6px_rgba(124,58,237,0.7)]">
+                  <i className="fa-regular fa-arrow-right"></i> Case study
                 </span>
               </div>
-              <p className="text-white/40 text-sm line-clamp-2">
-                {frontmatter.description}
-              </p>
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {frontmatter.tech.slice(0, 3).map((tech: string) => (
-                  <span
-                    key={tech}
-                    className="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-full border border-white/5"
-                  >
-                    {tech}
-                  </span>
-                ))}
-              </div>
-              <span className="inline-block mt-4 text-sm text-white/40 transition-all duration-300 group-hover:text-violet-400 group-hover:drop-shadow-[0_0_6px_rgba(124,58,237,0.7)]">
-                <i className="fa-regular fa-arrow-right"></i> Case study
-              </span>
-            </div>
-          </Link>
+            </Link>
+          </div>
         ))}
       </div>
     </section>

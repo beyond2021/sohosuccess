@@ -8,10 +8,10 @@ const ProjectFrontmatterSchema = z.object({
   category: z.enum(["web", "it", "mobile"]),
   year: z.string().or(z.number()),
   image: z.string().optional(),
+  url: z.string().optional(),
   tech: z.array(z.string()).default([]),
   description: z.string(),
 });
-
 export type ProjectFrontmatter = z.infer<typeof ProjectFrontmatterSchema>;
 
 export function getAllProjects() {
