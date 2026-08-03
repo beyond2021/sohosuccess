@@ -1,51 +1,98 @@
 export default function ServicesSection() {
-  const services = [
-    {
-      icon: "fa-user",
-      title: "Single Person Landing Pages",
-      body: "One page, built to convert. For consultants, freelancers, and solo operators who need a real web presence — not a template.",
-    },
-    {
-      icon: "fa-wrench",
-      title: "Revive Your Old Broken Code",
-      body: "That project you abandoned when it stopped building. We take it over, fix the dependencies, and get it shipping again.",
-    },
-  ];
-
   return (
-    <section id="services" className="relative py-24 px-4 md:px-8">
-      <div className="max-w-4xl mx-auto relative z-10">
-        <h2 className="text-3xl md:text-5xl font-bold text-center text-white mb-4">
-          Small jobs, done properly
+    <section
+      id="services"
+      className="relative px-6 md:px-10 py-20 md:py-28 max-w-7xl mx-auto"
+    >
+      <div className="relative z-10">
+        <div className="flex items-center gap-4 mb-2">
+          <span className="tag-pill">
+            <i className="fa-solid fa-bolt mr-1.5"></i> Services
+          </span>
+          <span className="text-xs text-white/20 font-mono">
+            / fixed scope, fixed price
+          </span>
+        </div>
+        <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
+          Small jobs, <span className="gradient-text">done properly</span>
         </h2>
-        <p className="text-center text-slate-400 max-w-2xl mx-auto mb-16">
-          Fixed scope, fixed price, no retainer.
+        <div className="section-line"></div>
+        <p className="mt-4 text-white/50 max-w-2xl text-lg">
+          Two things we do quickly and well — no retainer, no discovery phase,
+          no six-week timeline.
         </p>
+      </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-16">
-          {services.map((s) => (
-            <div
-              key={s.title}
-              className="rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-sm transition-colors hover:border-purple-500/40"
-            >
-              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-blue-600">
-                <i className={`fa-solid ${s.icon} text-lg text-white`} aria-hidden="true" />
-              </div>
-              <h3 className="mb-3 text-xl font-semibold text-white">{s.title}</h3>
-              <p className="text-sm leading-relaxed text-slate-400">{s.body}</p>
-            </div>
-          ))}
+      <div className="relative z-10 grid md:grid-cols-2 gap-6 mt-12">
+        <div className="glass card-lift rounded-2xl p-7 shimmer-border flex flex-col service-card">
+          <div className="icon-ring mb-5">
+            <i className="fa-solid fa-user"></i>
+          </div>
+          <h3 className="text-xl font-bold">Single Person Landing Pages</h3>
+          <p className="text-white/40 text-sm mt-1 leading-relaxed">
+            One page, built to convert. For consultants, freelancers, and solo
+            operators who need a real web presence — not a template with your
+            name dropped into it.
+          </p>
+          <ul className="mt-4 space-y-2 text-sm text-white/30">
+            <li className="flex items-center gap-2">
+              <i className="fa-regular fa-circle-check text-emerald-400/70"></i>{" "}
+              Custom design, not a theme
+            </li>
+            <li className="flex items-center gap-2">
+              <i className="fa-regular fa-circle-check text-emerald-400/70"></i>{" "}
+              Mobile-first &amp; fast by default
+            </li>
+            <li className="flex items-center gap-2">
+              <i className="fa-regular fa-circle-check text-emerald-400/70"></i>{" "}
+              Live in under a week
+            </li>
+          </ul>
         </div>
 
-        <div className="text-center">
+        <div className="glass card-lift rounded-2xl p-7 shimmer-border flex flex-col service-card">
+          <div className="icon-ring mb-5">
+            <i className="fa-solid fa-wrench"></i>
+          </div>
+          <h3 className="text-xl font-bold">Revive Your Old Broken Code</h3>
+          <p className="text-white/40 text-sm mt-1 leading-relaxed">
+            That project you abandoned when it stopped building. We take it
+            over, fix the dependencies, and get it shipping again — without
+            starting from scratch.
+          </p>
+          <ul className="mt-4 space-y-2 text-sm text-white/30">
+            <li className="flex items-center gap-2">
+              <i className="fa-regular fa-circle-check text-emerald-400/70"></i>{" "}
+              Dependency &amp; build repair
+            </li>
+            <li className="flex items-center gap-2">
+              <i className="fa-regular fa-circle-check text-emerald-400/70"></i>{" "}
+              Framework version upgrades
+            </li>
+            <li className="flex items-center gap-2">
+              <i className="fa-regular fa-circle-check text-emerald-400/70"></i>{" "}
+              Deployed &amp; documented
+            </li>
+          </ul>
+        </div>
+
+        <div className="md:col-span-2 glass-dark rounded-2xl p-6 flex flex-wrap items-center justify-between gap-4 border border-white/5">
+          <div className="flex items-center gap-4">
+            <i className="fa-solid fa-tag text-2xl text-yellow-400/60"></i>
+            <span className="text-sm font-medium text-white/60">
+              Transparent pricing:
+            </span>
+            <span className="text-sm text-white/30">
+              quoted up front · no hourly billing
+            </span>
+          </div>
           <a
             href="https://sohosuccess-invoice-jerry.netlify.app"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 px-10 py-4 font-semibold text-white shadow-lg shadow-purple-900/40 transition-opacity hover:opacity-90"
+            className="tag-pill hover:text-white transition"
           >
-            See pricing
-            <i className="fa-solid fa-arrow-right text-sm" aria-hidden="true" />
+            See pricing <i className="fa-solid fa-arrow-right ml-1.5"></i>
           </a>
         </div>
       </div>
