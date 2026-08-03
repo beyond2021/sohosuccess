@@ -6,6 +6,7 @@ import WebSection from "@/components/sections/WebSection";
 import ITSection from "@/components/sections/ITSection";
 import MobileSection from "@/components/sections/MobileSection";
 import ContactSection from "@/components/sections/ContactSection";
+import ServicesSection from "@/components/sections/ServicesSection";
 
 export default async function Home() {
   const webProjects = getAllProjects().filter((p) => p.category === "web");
@@ -21,6 +22,7 @@ export default async function Home() {
       <WebSection projects={webProjects} />
       <ITSection />
       <MobileSection />
+      <ServicesSection />
       <ContactSection />
       <Footer />
     </main>
