@@ -8,13 +8,13 @@ export default function Hero({ projectCount }: HeroProps) {
       <div className="relative z-10 max-w-4xl">
         <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 text-xs font-medium text-white/50 mb-6">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          Award-winning design · Next.js 13
+          Award-winning design · Next.js 
         </div>
-        <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight text-white/90">
+        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight text-white/90">
           Building digital <span className="gradient-text">experiences</span>{" "}
           that win awards.
         </h1>
-        <p className="mt-6 text-lg md:text-xl text-white/50 max-w-2xl leading-relaxed">
+        <p className="mt-6 text-lg md:text-xl text-white/100 max-w-2xl leading-relaxed">
           From high-performance websites and mobile apps to enterprise-grade IT
           infrastructure — we engineer success for modern businesses.
         </p>
