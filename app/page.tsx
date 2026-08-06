@@ -7,6 +7,7 @@ import ITSection from "@/components/sections/ITSection";
 import MobileSection from "@/components/sections/MobileSection";
 import ContactSection from "@/components/sections/ContactSection";
 import ServicesSection from "@/components/sections/ServicesSection";
+import OpenSourceSection from "@/components/sections/OpenSourceSection";
 
 export default async function Home() {
   const webProjects = getAllProjects().filter((p) => p.category === "web");
@@ -20,6 +21,7 @@ export default async function Home() {
       <Header />
       <Hero projectCount={webProjects.length} />
       <WebSection projects={webProjects} />
+      <OpenSourceSection />
       <ITSection />
       <MobileSection />
       <ServicesSection />

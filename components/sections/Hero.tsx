@@ -46,16 +46,16 @@ export default function Hero({ projectCount }: HeroProps) {
           <div className="mt-14 flex flex-wrap gap-8 md:gap-12 text-white/40">
             <div>
               <span className="block text-2xl font-bold text-white">
-                {projectCount}+
+                50+
               </span>
               <span className="text-sm">Web projects</span>
             </div>
             <div>
-              <span className="block text-2xl font-bold text-white">8+</span>
+              <span className="block text-2xl font-bold text-white">50+</span>
               <span className="text-sm">IT deployments</span>
             </div>
             <div>
-              <span className="block text-2xl font-bold text-white">4+</span>
+              <span className="block text-2xl font-bold text-white">100+</span>
               <span className="text-sm">Mobile apps</span>
             </div>
             <div>

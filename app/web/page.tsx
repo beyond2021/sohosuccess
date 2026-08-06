@@ -6,6 +6,7 @@ import Hero from "@/components/sections/Hero";
 import ITSection from "@/components/sections/ITSection";
 import MobileSection from "@/components/sections/MobileSection";
 import ContactSection from "@/components/sections/ContactSection";
+import OpenSourceSection from "@/components/sections/OpenSourceSection";
 
 export default async function Home() {
   const webProjects = getAllProjects().filter((p) => p.category === "web");
