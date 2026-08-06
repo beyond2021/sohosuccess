@@ -11,8 +11,11 @@ export default function FooterGlow() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
 
+    // --- Noise & FBM Setup ---
     const P = new Uint8Array(512);
     const perm = new Uint8Array(256);
     for (let i = 0; i < 256; i++) perm[i] = i;
@@ -20,7 +23,9 @@ export default function FooterGlow() {
     for (let i = 255; i > 0; i--) {
       seed = (seed * 1664525 + 1013904223) >>> 0;
       const j = seed % (i + 1);
-      const tmp = perm[i]; perm[i] = perm[j]; perm[j] = tmp;
+      const tmp = perm[i];
+      perm[i] = perm[j];
+      perm[j] = tmp;
     }
     for (let i = 0; i < 512; i++) P[i] = perm[i & 255];
 
@@ -34,50 +39,87 @@ export default function FooterGlow() {
     };
 
     const noise = (x: number, y: number, z: number) => {
-      const X = Math.floor(x) & 255, Y = Math.floor(y) & 255, Z = Math.floor(z) & 255;
-      x -= Math.floor(x); y -= Math.floor(y); z -= Math.floor(z);
-      const u = fade(x), v = fade(y), wf = fade(z);
-      const A = P[X] + Y, AA = P[A] + Z, AB = P[A + 1] + Z;
-      const B = P[X + 1] + Y, BA = P[B] + Z, BB = P[B + 1] + Z;
+      const X = Math.floor(x) & 255,
+        Y = Math.floor(y) & 255,
+        Z = Math.floor(z) & 255;
+      x -= Math.floor(x);
+      y -= Math.floor(y);
+      z -= Math.floor(z);
+      const u = fade(x),
+        v = fade(y),
+        wf = fade(z);
+      const A = P[X] + Y,
+        AA = P[A] + Z,
+        AB = P[A + 1] + Z;
+      const B = P[X + 1] + Y,
+        BA = P[B] + Z,
+        BB = P[B + 1] + Z;
       return lerp(
         lerp(
           lerp(grad(P[AA], x, y, z), grad(P[BA], x - 1, y, z), u),
-          lerp(grad(P[AB], x, y - 1, z), grad(P[BB], x - 1, y - 1, z), u), v),
+          lerp(grad(P[AB], x, y - 1, z), grad(P[BB], x - 1, y - 1, z), u),
+          v,
+        ),
         lerp(
-          lerp(grad(P[AA + 1], x, y, z - 1), grad(P[BA + 1], x - 1, y, z - 1), u),
-          lerp(grad(P[AB + 1], x, y - 1, z - 1), grad(P[BB + 1], x - 1, y - 1, z - 1), u), v),
-        wf);
+          lerp(
+            grad(P[AA + 1], x, y, z - 1),
+            grad(P[BA + 1], x - 1, y, z - 1),
+            u,
+          ),
+          lerp(
+            grad(P[AB + 1], x, y - 1, z - 1),
+            grad(P[BB + 1], x - 1, y - 1, z - 1),
+            u,
+          ),
+          v,
+        ),
+        wf,
+      );
     };
 
     const fbm = (x: number, y: number, z: number) => {
-      let v = 0, a = 0.5, f = 1;
+      let v = 0,
+        a = 0.5,
+        f = 1;
       for (let i = 0; i < 4; i++) {
         v += a * noise(x * f, y * f, z * f);
-        f *= 2.03; a *= 0.5;
+        f *= 2.03;
+        a *= 0.5;
       }
       return v;
     };
 
+    // --- Resolution Management ---
     const FW = 128;
     let FH = 52;
     const buf = document.createElement("canvas");
-    const bctx = buf.getContext("2d", { willReadFrequently: true })!;
-    let img: ImageData;
+    const bctx = buf.getContext("2d", { willReadFrequently: true });
+    if (!bctx) return;
 
-    let w = 0, h = 0, raf = 0, running = true;
+    let img: ImageData;
+    let w = 0,
+      h = 0,
+      raf = 0,
+      running = true;
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
-      w = Math.max(1, rect.width); h = Math.max(1, rect.height);
-      canvas.width = w; canvas.height = h;
+      w = Math.max(1, rect.width);
+      h = Math.max(1, rect.height);
+      canvas.width = w;
+      canvas.height = h;
       FH = Math.max(24, Math.round(FW * (h / w)));
-      buf.width = FW; buf.height = FH;
+      buf.width = FW;
+      buf.height = FH;
       img = bctx.createImageData(FW, FH);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
     };
 
+    // --- Core Animation Loop ---
     const draw = (time: number) => {
+      if (!running) return;
+
       const t = reduced ? 0 : time * 0.0001;
       const d = img.data;
 
@@ -93,11 +135,14 @@ export default function FooterGlow() {
           let n = fbm(
             u * 2.6 + qx * 1.15,
             v * 2.0 + qy * 1.15 - t * 4.0,
-            t * 2.2 + 9.1
+            t * 2.2 + 9.1,
           );
           n = n * 0.5 + 0.5;
 
-          const sides = Math.pow(Math.sin(Math.min(1, Math.max(0, u)) * Math.PI), 0.7);
+          const sides = Math.pow(
+            Math.sin(Math.min(1, Math.max(0, u)) * Math.PI),
+            0.7,
+          );
           let dens = (n * 1.35 - 0.28) * rise * sides;
           if (dens <= 0.002) {
             const i0 = (y * FW + x) * 4;
@@ -124,20 +169,29 @@ export default function FooterGlow() {
       ctx.clearRect(0, 0, w, h);
       ctx.drawImage(buf, 0, 0, w, h);
 
-      if (running) raf = requestAnimationFrame(draw);
+      // CRITICAL FIX: Loop requires passing the draw function so requestAnimationFrame feeds new timestamps
+      raf = requestAnimationFrame(draw);
     };
 
     resize();
     window.addEventListener("resize", resize);
 
-    const io = new IntersectionObserver(([e]) => {
-      running = e.isIntersecting;
-      if (running) raf = requestAnimationFrame(draw);
-      else cancelAnimationFrame(raf);
-    }, { threshold: 0 });
+    // --- Optimization: Run Only When Visible ---
+    const io = new IntersectionObserver(
+      ([e]) => {
+        running = e.isIntersecting;
+        if (running) {
+          raf = requestAnimationFrame(draw);
+        } else {
+          cancelAnimationFrame(raf);
+        }
+      },
+      { threshold: 0 },
+    );
     io.observe(canvas);
 
     raf = requestAnimationFrame(draw);
+
     return () => {
       running = false;
       cancelAnimationFrame(raf);
@@ -149,20 +203,22 @@ export default function FooterGlow() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 bottom-0 h-[190px] overflow-hidden"
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-[190px] overflow-hidden select-none"
     >
+      {/* Static Background Radial Glow */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 transition-opacity duration-1000 ease-out animate-fade-in"
         style={{
           background:
-            "radial-gradient(ellipse 70% 130% at 50% 100%, rgba(109,40,217,0.32) 0%, rgba(59,130,246,0.08) 55%, transparent 78%)",
-          filter: "blur(30px)",
+            "radial-gradient(ellipse 70% 130% at 50% 100%, rgba(109,40,217,0.18) 0%, rgba(59,130,246,0.05) 55%, transparent 78%)",
+          filter: "blur(40px)",
         }}
       />
+      {/* Animated Noise Fluid Canvas */}
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 h-full w-full"
-        style={{ filter: "blur(14px)", mixBlendMode: "screen" }}
+        className="absolute inset-0 h-full w-full opacity-0 transition-opacity duration-1000 ease-in-out [animation-fill-mode:forwards] [animation-delay:200ms] animate-fade-in"
+        style={{ filter: "blur(12px)", mixBlendMode: "screen" }}
       />
     </div>
   );
