@@ -13,6 +13,8 @@ const socials = [
   },
 ];
 
+import FooterGlow from "./FooterGlow";
+
 const columns = [
   {
     title: "Services",
@@ -53,10 +55,16 @@ const columns = [
 export default function Footer() {
   return (
     <footer className="relative mt-16 md:mt-24 overflow-hidden">
+      
+      {/* FIX 1 & 2: Removed parent div, added absolute boundary wrapper with explicit height */}
+      <div className="absolute inset-x-0 bottom-0 h-64 md:h-80 pointer-events-none z-0">
+        <FooterGlow />
+      </div>
+
       {/* Background Gradients: Scaled down height on mobile to prevent clipping */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[300px] md:h-[420px]"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-0"
         style={{
           background:
             "radial-gradient(ellipse 70% 100% at 50% 100%, rgba(124,58,237,0.55) 0%, rgba(88,28,235,0.28) 35%, rgba(37,99,235,0.10) 60%, transparent 80%)",
@@ -65,7 +73,7 @@ export default function Footer() {
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[180px] md:h-[260px] opacity-70"
+        className="pointer-events-none absolute inset-x-0 bottom-0 opacity-70 z-0"
         style={{
           background:
             "radial-gradient(ellipse 45% 100% at 50% 110%, rgba(167,139,250,0.5) 0%, transparent 70%)",
@@ -77,26 +85,20 @@ export default function Footer() {
       <div className="relative z-10 px-6 md:px-10 pt-16 md:pt-24 pb-12 md:pb-16 max-w-7xl mx-auto">
         <div className="grid md:grid-cols-2 gap-8 md:gap-10 items-start">
           <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight leading-[1.15] md:leading-[1.1]">
-            Technical &amp; professional.
-            <br />
-            Built for your business.
-            <br />
+            Technical &amp; professional. <br /> Built for your business. <br />{" "}
             <span className="gradient-text">Available now.</span>
           </h2>
           <div className="pt-2">
             <p className="text-white/50 text-base md:text-lg max-w-md">
-              Skip the agency runaround. Web, mobile, and IT infrastructure from
-              one team that actually ships.
+              Skip the agency runaround. Web, mobile, and IT infrastructure
+              from one team that actually ships.
             </p>
             <a
               href="/#contact"
               className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-sm font-semibold text-[#080b14] transition-transform hover:-translate-y-0.5 active:scale-95"
             >
-              Get in touch
-              <i
-                className="fa-solid fa-arrow-right text-xs"
-                aria-hidden="true"
-              />
+              Get in touch{" "}
+              <i className="fa-solid fa-arrow-right text-xs" aria-hidden="true" />
             </a>
           </div>
         </div>
@@ -112,9 +114,9 @@ export default function Footer() {
               <i
                 className="fa-solid fa-code text-purple-400/70"
                 aria-hidden="true"
-              />
+              />{" "}
               <span>
-                Soho Success — build websites, faster, better, visually.
+                Sohosuccess — build websites, faster, better, visually.
               </span>
             </div>
             <div className="mt-5 flex items-center gap-4">
@@ -164,3 +166,4 @@ export default function Footer() {
     </footer>
   );
 }
+
