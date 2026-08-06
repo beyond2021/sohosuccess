@@ -37,12 +37,13 @@ export default function WebSection({ projects }: WebSectionProps) {
         </p>
       </div>
 
-      <div className="relative z-10 grid sm:grid-cols-2 lg:grid-cols-5 gap-6 mt-12">
+      {/* Added h-full behavior to children by default using grid */}
+      <div className="relative z-10 grid sm:grid-cols-2 lg:grid-cols-5 gap-6 mt-12 items-stretch">
         {projects.map(({ slug, frontmatter }) => (
           /* HTML forbids an <a> inside an <a>, so the card is a div holding two
              sibling links: the body goes to the case study, the corner icon goes
              to the live site. "group" lives here so both react to the hover. */
-          <div key={slug} className="group relative">
+          <div key={slug} className="group relative flex flex-col h-full">
             {frontmatter.url && (
               <a
                 href={frontmatter.url}
@@ -60,14 +61,15 @@ export default function WebSection({ projects }: WebSectionProps) {
               </a>
             )}
 
+            {/* CHANGED: Added h-full and flex flex-col to force equal card heights */}
             <Link
               href={`/web/${slug}`}
-              className="block glass card-lift rounded-2xl overflow-hidden shimmer-border
+              className="flex flex-col h-full glass card-lift rounded-2xl overflow-hidden shimmer-border
                          transition-shadow duration-300 hover:no-underline
                          hover:shadow-[0_12px_30px_-10px_rgba(124,58,237,0.6)]"
             >
-              {/* Image */}
-              <div className="relative aspect-[4/5] bg-white/5">
+              {/* Image Container: Preserves 4/5 ratio strictly */}
+              <div className="relative aspect-[4/5] w-full bg-white/5 shrink-0">
                 <img
                   src={frontmatter.image || FALLBACK}
                   alt={frontmatter.title}
@@ -78,8 +80,8 @@ export default function WebSection({ projects }: WebSectionProps) {
                 />
               </div>
 
-              {/* Text */}
-              <div className="p-5">
+              {/* Text Container: CHANGED to flex flex-col with flex-grow */}
+              <div className="p-5 flex flex-col flex-grow">
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="text-xl font-bold truncate transition-all duration-300 group-hover:text-violet-400 group-hover:drop-shadow-[0_0_8px_rgba(124,58,237,0.8)]">
                     {frontmatter.title}
@@ -101,6 +103,10 @@ export default function WebSection({ projects }: WebSectionProps) {
                     </span>
                   ))}
                 </div>
+
+                {/* CHANGED: This empty div pushes the button below it down to the edge */}
+                <div className="flex-grow"></div>
+
                 <span className="inline-block mt-4 text-sm text-white/40 transition-all duration-300 group-hover:text-violet-400 group-hover:drop-shadow-[0_0_6px_rgba(124,58,237,0.7)]">
                   <i className="fa-regular fa-arrow-right"></i> Case study
                 </span>
