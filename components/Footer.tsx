@@ -1,8 +1,8 @@
 const socials = [
   { icon: "fa-github",      label: "GitHub",   href: "https://github.com/beyond2021" },
-  { icon: "fa-x-twitter",   label: "X",        href: "https://x.com/YOUR_HANDLE" },
-  { icon: "fa-linkedin-in", label: "LinkedIn", href: "https://linkedin.com/in/YOUR_PROFILE" },
-  { icon: "fa-dribbble",    label: "Dribbble", href: "https://dribbble.com/YOUR_HANDLE" },
+  { icon: "fa-x-twitter",   label: "X",        href: "https://x.com/beyond2021" },
+  { icon: "fa-linkedin-in", label: "LinkedIn", href: "https://linkedin.com/in/ioskeevinmitcell" },
+  { icon: "fa-dribbble",    label: "Dribbble", href: "https://dribbble.com/beyond2021" },
 ];
 
 const columns = [
@@ -29,7 +29,7 @@ const columns = [
     links: [
       { label: "About", href: "/#contact" },
       { label: "Contact", href: "/#contact" },
-      { label: "Pricing", href: "https://sohosuccess-invoice-jerry.netlify.app" },
+      { label: "Pricing", href: "https://sohosuccess-invoice.netlify.app" },
     ],
   },
   {
