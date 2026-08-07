@@ -7,6 +7,14 @@ const contributions = [
     href: "https://github.com/alantoa/universal-tooltip/pull/26",
     status: "PR open",
   },
+  {
+    repo: "homeless-in-slo-resource-guide",
+    title: "Repaired broken source links in a public resource guide",
+    blurb:
+      "Traced three dead URLs to site reorganisations and a malformed slug. Caught a fourth that only looked broken to automated checkers, and left it alone.",
+    href: "https://github.com/davgross/homeless-in-slo-resource-guide/pull/377",
+    status: "PR open",
+  },
 ];
 
 export default function OpenSourceSection() {
