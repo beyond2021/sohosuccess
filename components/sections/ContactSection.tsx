@@ -20,10 +20,10 @@ export default function ContactSection() {
             </p>
             <div className="flex flex-wrap gap-4 mt-6">
               <a
-                href="mailto:hi@sohosuccess.dev"
+                href="mailto:hello@sohosuccess.fyi"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition"
               >
-                <i className="fa-regular fa-envelope"></i> hi@sohosuccess.dev
+                <i className="fa-regular fa-envelope"></i> hello@sohosuccess.fyi
               </a>
               <a
                 href="#"
