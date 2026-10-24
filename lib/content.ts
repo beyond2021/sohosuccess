@@ -1,100 +1,100 @@
 import fs from "fs";
 import path from "path";
+import matter from "gray-matter";
 import { compileMDX } from "next-mdx-remote/rsc";
 import { z } from "zod";
 
+const CONTENT_DIR = path.join(process.cwd(), "content/projects");
+export const CATEGORIES = ["web", "it", "mobile"] as const;
+export type Category = (typeof CATEGORIES)[number];
+
 const ProjectFrontmatterSchema = z.object({
   title: z.string(),
-  category: z.enum(["web", "it", "mobile"]),
-  year: z.string().or(z.number()),
+  category: z.enum(CATEGORIES),
+  year: z.union([z.string(), z.number()]),
   image: z.string().optional(),
   url: z.string().optional(),
-  tech: z.array(z.string()).default([]),
+  tech: z
+    .array(z.string())
+    .nullish()
+    .transform((v) => v ?? []),
   description: z.string(),
 });
 export type ProjectFrontmatter = z.infer<typeof ProjectFrontmatterSchema>;
 
-export function getAllProjects() {
-  console.log("✅ getAllProjects() is running");
-  const projectsDir = path.join(process.cwd(), "content/projects");
-  const categories = fs.readdirSync(projectsDir);
-  const results = [];
+export type Project = {
+  slug: string;
+  category: Category;
+  frontmatter: ProjectFrontmatter;
+};
 
-  for (const category of categories) {
-    const categoryPath = path.join(projectsDir, category);
-    if (!fs.statSync(categoryPath).isDirectory()) continue;
+function yearValue(year: string | number): number {
+  const n = Number(year);
+  return Number.isFinite(n) ? n : 0;
+}
 
-    const files = fs
-      .readdirSync(categoryPath)
-      .filter((f) => f.endsWith(".mdx"));
+export function getAllProjects(): Project[] {
+  const results: Project[] = [];
 
-    for (const file of files) {
+  for (const category of CATEGORIES) {
+    const categoryPath = path.join(CONTENT_DIR, category);
+    if (!fs.existsSync(categoryPath)) continue;
+
+    for (const file of fs.readdirSync(categoryPath)) {
+      if (!file.endsWith(".mdx")) continue;
       const slug = file.replace(/\.mdx$/, "");
       const filePath = path.join(categoryPath, file);
-      const rawContent = fs.readFileSync(filePath, "utf-8");
 
-      const frontmatterMatch = rawContent.match(/---\n([\s\S]*?)\n---/);
-      if (!frontmatterMatch) continue;
-
-      const frontmatterRaw = frontmatterMatch[1];
-      const frontmatterObj = frontmatterRaw.split("\n").reduce(
-        (acc, line) => {
-          const [key, ...val] = line.split(":");
-          if (!key) return acc;
-          const trimmedKey = key.trim();
-          let parsedVal: string | number | string[] = val
-            .join(":")
-            .replace(/\s+#.*$/, "") // strip trailing YAML comments
-            .replace(/\r/g, "") // strip CR from CRLF files
-            .trim();
-
-          if (parsedVal.startsWith("[") && parsedVal.endsWith("]")) {
-            parsedVal = parsedVal
-              .slice(1, -1)
-              .split(",")
-              .map((s) => s.trim().replace(/['"]/g, ""));
-          } else if (parsedVal !== "" && !isNaN(Number(parsedVal))) {
-            parsedVal = Number(parsedVal);
-          }
-          acc[trimmedKey] = parsedVal;
-          return acc;
-        },
-        {} as Record<string, unknown>,
-      );
-
-      const parsed = ProjectFrontmatterSchema.safeParse({
-        ...frontmatterObj,
-        category,
-      });
-      if (!parsed.success) {
-        console.warn(
-          `Invalid frontmatter in ${filePath}:`,
-          parsed.error.issues,
-        );
-        continue;
+      try {
+        const { data } = matter(fs.readFileSync(filePath, "utf-8"));
+        const parsed = ProjectFrontmatterSchema.safeParse({
+          ...data,
+          category,
+        });
+        if (!parsed.success) {
+          console.warn(
+            `Invalid frontmatter in ${filePath}:`,
+            parsed.error.issues,
+          );
+          continue;
+        }
+        results.push({ slug, category, frontmatter: parsed.data });
+      } catch (err) {
+        console.warn(`Failed to read ${filePath}:`, err);
       }
-
-      results.push({ slug, category, frontmatter: parsed.data });
     }
   }
-  return results;
+
+  return results.sort(
+    (a, b) => yearValue(b.frontmatter.year) - yearValue(a.frontmatter.year),
+  );
 }
 
 export async function getProject(category: string, slug: string) {
-  const filePath = path.join(
-    process.cwd(),
-    `content/projects/${category}/${slug}.mdx`,
-  );
-  const rawContent = fs.readFileSync(filePath, "utf-8");
+  if (!CATEGORIES.includes(category as Category)) return null;
+  if (!/^[a-z0-9-]+$/i.test(slug)) return null;
 
-  const { content, frontmatter } = await compileMDX({
-    source: rawContent,
-    options: { parseFrontmatter: true },
-  });
+  const filePath = path.join(CONTENT_DIR, category, `${slug}.mdx`);
+  if (!fs.existsSync(filePath)) return null;
 
-  const validated = ProjectFrontmatterSchema.parse({
-    ...frontmatter,
+  const parsed = matter(fs.readFileSync(filePath, "utf-8"));
+
+  const frontmatter = ProjectFrontmatterSchema.safeParse({
+    ...parsed.data,
     category,
   });
-  return { content, frontmatter: validated };
+  if (!frontmatter.success) {
+    console.warn(
+      `Invalid frontmatter in ${filePath}:`,
+      frontmatter.error.issues,
+    );
+    return null;
+  }
+
+  const { content } = await compileMDX({
+    source: parsed.content,
+    options: { parseFrontmatter: false },
+  });
+
+  return { content, frontmatter: frontmatter.data };
 }

@@ -1,4 +1,4 @@
-import { getAllProjects } from "@/lib/content";
+import { api } from "@/lib/supabase";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Hero from "@/components/sections/Hero";
@@ -9,8 +9,10 @@ import ContactSection from "@/components/sections/ContactSection";
 import ServicesSection from "@/components/sections/ServicesSection";
 import OpenSourceSection from "@/components/sections/OpenSourceSection";
 
+export const revalidate = 60;
+
 export default async function Home() {
-  const webProjects = getAllProjects().filter((p) => p.category === "web");
+  const webProjects = await api.getProjects("web");
 
   return (
     <main className="relative">

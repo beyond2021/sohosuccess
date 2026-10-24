@@ -1,0 +1,66 @@
+[
+  {
+    "id": "lyric",
+    "slug": "lyric",
+    "title": "Lyric",
+    "category": "web",
+    "year": 2026,
+    "description": "A music discovery platform with curated playlists and real-time lyrics.",
+    "image_url": "/projects/web/lyric.jpg",
+    "url": "https://keev-music.netlify.app",
+    "tech": [
+      "Next.js 13",
+      "Tailwind",
+      "Spotify API"
+    ],
+    "featured": true
+  },
+  {
+    "id": "medime",
+    "slug": "medime",
+    "title": "MeDiMe",
+    "category": "web",
+    "year": 2026,
+    "description": "Memory and medication management for seniors and caregivers.",
+    "image_url": "/projects/web/medime.jpg",
+    "url": "https://medimeproject.netlify.app",
+    "tech": [
+      "React Native",
+      "Firebase",
+      "Healthcare"
+    ],
+    "featured": true
+  },
+  {
+    "id": "nova-studio",
+    "slug": "nova-studio",
+    "title": "Nova Studio",
+    "category": "web",
+    "year": 2025,
+    "description": "Creative agency landing page.",
+    "image_url": "/projects/web/fallback.jpg",
+    "url": "https://sohosuccess.netlify.app",
+    "tech": [
+      "Next.js 13",
+      "Framer Motion",
+      "Tailwind"
+    ],
+    "featured": true
+  },
+  {
+    "id": "sohocheq",
+    "slug": "sohocheq",
+    "title": "SohoCheq",
+    "category": "web",
+    "year": 2026,
+    "description": "Website performance monitoring with an AI coach and ad waste detection.",
+    "image_url": "/projects/web/website-sohocheq.jpg",
+    "url": "https://sohocheq.com",
+    "tech": [
+      "Next.js 13",
+      "AI",
+      "Analytics"
+    ],
+    "featured": false
+  }
+]
