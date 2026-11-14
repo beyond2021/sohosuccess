@@ -90,13 +90,37 @@ export default function AccountApp() {
 
 // ───────────────────────── Sign in ─────────────────────────
 
+// Remember "a code was sent to X" for an hour, so a refresh doesn't lose the code screen.
+const PENDING_KEY = "signin.pending";
+function readPending(): string | null {
+  try {
+    const p = JSON.parse(localStorage.getItem(PENDING_KEY) ?? "null") as { email: string; at: number } | null;
+    return p && Date.now() - p.at < 3600_000 ? p.email : null;
+  } catch {
+    return null;
+  }
+}
+function savePending(email: string | null) {
+  try {
+    if (email) localStorage.setItem(PENDING_KEY, JSON.stringify({ email, at: Date.now() }));
+    else localStorage.removeItem(PENDING_KEY);
+  } catch {
+    /* private mode */
+  }
+}
+
+const linkBtn = "text-sm font-semibold text-cyan-300 hover:text-cyan-200";
+
+// Only rendered in the browser (after the session check), so reading localStorage here is safe.
 function SignIn() {
-  const [step, setStep] = useState<"email" | "code" | "password">("email");
-  const [email, setEmail] = useState("");
+  const [step, setStep] = useState<"email" | "code" | "password">(() => (readPending() ? "code" : "email"));
+  const [email, setEmail] = useState(() => readPending() ?? "");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
@@ -123,15 +147,15 @@ function SignIn() {
         className={`${card} space-y-4`}
         onSubmit={(e) => {
           e.preventDefault();
-          if (step === "email") run(async () => { await sendCode(email); setStep("code"); });
-          else if (step === "code") run(() => verifyCode(email, code));
+          if (step === "email") run(async () => { await sendCode(email); savePending(email.trim()); setCode(""); setStep("code"); });
+          else if (step === "code") run(async () => { await verifyCode(email, code); savePending(null); });
           else run(() => signInWithPassword(email, password));
         }}
       >
         {step === "code" ? (
           <>
             <p className="text-white/70">
-              We emailed a sign-in code to <strong className="text-white">{email.trim()}</strong>.
+              Enter the code we emailed to <strong className="text-white">{email.trim()}</strong>.
             </p>
             <div>
               <label htmlFor="code" className={label}>Code</label>
@@ -162,19 +186,54 @@ function SignIn() {
         )}
 
         {error ? <p className="text-sm font-semibold text-rose-300">{error}</p> : null}
+        {notice && !error ? <p className="text-sm text-white/60">{notice}</p> : null}
 
         <button type="submit" className={`${btnPrimary} w-full`} disabled={busy || (step === "code" && code.length < 6)}>
           {busy ? "One moment…" : step === "email" ? "Email me a sign-in code" : "Sign in"}
         </button>
 
-        <div className="text-center">
+        <div className="flex flex-col items-center gap-2 text-center">
           {step === "email" ? (
-            <button type="button" className="text-sm font-semibold text-cyan-300 hover:text-cyan-200" onClick={() => { setStep("password"); setError(null); }}>
-              Use a password instead
-            </button>
+            <>
+              <button
+                type="button"
+                className={linkBtn}
+                onClick={() => {
+                  if (!emailOk) return setError("Enter the email the code was sent to.");
+                  setError(null);
+                  setStep("code");
+                }}
+              >
+                I already have a code
+              </button>
+              <button type="button" className={linkBtn} onClick={() => { setStep("password"); setError(null); }}>
+                Use a password instead
+              </button>
+            </>
+          ) : step === "code" ? (
+            <>
+              <button
+                type="button"
+                className={linkBtn}
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    await sendCode(email);
+                    savePending(email.trim());
+                    setCode("");
+                    setNotice("New code sent. Use the newest email.");
+                  })
+                }
+              >
+                Send a new code
+              </button>
+              <button type="button" className={linkBtn} onClick={() => { savePending(null); setStep("email"); setCode(""); setError(null); setNotice(null); }}>
+                Use a different email
+              </button>
+            </>
           ) : (
-            <button type="button" className="text-sm font-semibold text-cyan-300 hover:text-cyan-200" onClick={() => { setStep("email"); setCode(""); setError(null); }}>
-              {step === "code" ? "Use a different email" : "Email me a code instead"}
+            <button type="button" className={linkBtn} onClick={() => { setStep("email"); setError(null); }}>
+              Email me a code instead
             </button>
           )}
         </div>
