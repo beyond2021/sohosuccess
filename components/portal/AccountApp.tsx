@@ -259,6 +259,21 @@ function SignIn() {
         )}
 
         {error ? <p className="text-sm font-semibold text-rose-300">{error}</p> : null}
+        {error && /don't have an account/i.test(error) ? (
+          <button
+            type="button"
+            className={`${btnSecondary} w-full`}
+            onClick={() => {
+              savePending(null);
+              setError(null);
+              setNotice(null);
+              setCode("");
+              setStep("signup");
+            }}
+          >
+            Create an account with this email
+          </button>
+        ) : null}
         {notice && !error ? <p className="text-sm text-white/60">{notice}</p> : null}
 
         <button type="submit" className={`${btnPrimary} w-full`} disabled={busy || (step === "code" && code.length < 6)}>
