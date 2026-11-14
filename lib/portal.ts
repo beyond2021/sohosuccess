@@ -46,6 +46,15 @@ export interface Invoice {
   due_date: string | null;
   pay_url: string | null;
 }
+/** An alert. Same rows the app shows and sends as push notifications. */
+export interface AppAlert {
+  id: string;
+  title: string;
+  body: string;
+  url: string | null; // app screen, e.g. /account/invoices
+  created_at: string;
+  read_at: string | null;
+}
 export interface PriceItem {
   key: string;
   category: ServiceKind;
@@ -141,6 +150,38 @@ export async function getInvoices(): Promise<Invoice[]> {
   if (error) throw error;
   return (data ?? []) as Invoice[];
 }
+
+// ── Alerts ──
+export async function getAlerts(): Promise<AppAlert[]> {
+  const { data, error } = await requireSupabase()
+    .from("notifications")
+    .select("id, title, body, url, created_at, read_at")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return (data ?? []) as AppAlert[];
+}
+/** Marks these alerts read, or all of them when ids is left out. */
+export async function markAlertsRead(ids?: string[]) {
+  const { error } = await requireSupabase().rpc("mark_notifications_read", { p_ids: ids ?? null });
+  if (error) throw new Error(error.message);
+}
+/** Where an app screen lives on this page. Requests are app-only for now. */
+export function alertAnchor(url: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith("/account/estimate")) return "#est";
+  if (url.startsWith("/account/invoices")) return "#inv";
+  if (url === "/account") return "#svc";
+  return null;
+}
+export const timeAgo = (iso: string) => {
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} h ago`;
+  return shortDate(iso);
+};
 
 /** Sends the browser to Stripe's payment page (Apple Pay, Google Pay, card). */
 export async function payInvoice(invoice: Pick<Invoice, "id" | "pay_url">) {

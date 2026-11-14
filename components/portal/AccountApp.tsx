@@ -5,6 +5,11 @@ import type { Session } from "@supabase/supabase-js";
 import { getSupabase } from "@/lib/supabase";
 import {
   acceptEstimate,
+  alertAnchor,
+  getAlerts,
+  markAlertsRead,
+  timeAgo,
+  type AppAlert,
   declineEstimate,
   estimateTotal,
   getEstimates,
@@ -186,6 +191,7 @@ function SignIn() {
 // ───────────────────────── Dashboard ─────────────────────────
 
 interface Data {
+  alerts: AppAlert[];
   me: Me;
   services: ClientService[];
   estimates: Estimate[];
@@ -198,8 +204,14 @@ function Dashboard() {
 
   const load = useCallback(async () => {
     try {
-      const [me, services, estimates, invoices] = await Promise.all([getMe(), getServices(), getEstimates(), getInvoices()]);
-      setData({ me, services, estimates, invoices });
+      const [me, services, estimates, invoices, alerts] = await Promise.all([
+        getMe(),
+        getServices(),
+        getEstimates(),
+        getInvoices(),
+        getAlerts().catch(() => [] as AppAlert[]),
+      ]);
+      setData({ me, services, estimates, invoices, alerts });
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load your account.");
@@ -209,6 +221,26 @@ function Dashboard() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Pick up new alerts while the page is open: every minute, and when you come back to the tab.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    const timer = window.setInterval(refresh, 60_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [load]);
+
+  // "(2) Client login" in the browser tab when there's something new.
+  const unread = data?.alerts.filter((a) => !a.read_at).length ?? 0;
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\) /, "");
+    document.title = unread ? `(${unread}) ${base}` : base;
+  }, [unread]);
 
   if (error) {
     return (
@@ -220,7 +252,8 @@ function Dashboard() {
   }
   if (!data) return <p className="text-white/50">Loading your account…</p>;
 
-  const { me, services, estimates, invoices } = data;
+  const { me, services, estimates, invoices, alerts } = data;
+  const down = services.filter((s) => s.status === "down");
 
   return (
     <div className="space-y-10">
@@ -229,15 +262,27 @@ function Dashboard() {
           <p className="text-white/50">{me.fullName ? `Hi, ${me.fullName.split(" ")[0]}` : "Welcome"}</p>
           <h1 className="text-3xl font-extrabold tracking-tight text-white md:text-4xl">{me.clientName ?? "Your account"}</h1>
         </div>
-        <button className={btnSecondary} onClick={() => signOut()}>Sign out</button>
+        <div className="flex items-center gap-3">
+          <AlertsButton alerts={alerts} onRead={load} />
+          <button className={btnSecondary} onClick={() => signOut()}>Sign out</button>
+        </div>
       </div>
+
+      {down.length ? (
+        <div role="alert" className="flex items-center gap-3 rounded-2xl border border-rose-400/50 bg-rose-500/10 p-4">
+          <i className="fa-solid fa-circle-exclamation text-lg text-rose-300" aria-hidden />
+          <p className="font-semibold text-white">
+            {down.length === 1 ? `${down[0].name} is down.` : `${down.length} services are down.`} We&apos;re on it.
+          </p>
+        </div>
+      ) : null}
 
       {!me.clientName ? (
         <p className={`${card} text-white/70`}>Your account isn&apos;t linked to a business yet. We&apos;ll connect it shortly.</p>
       ) : null}
 
       <section aria-labelledby="svc" className="space-y-3">
-        <h2 id="svc" className="text-xl font-bold text-white">Your services</h2>
+        <h2 id="svc" className="scroll-mt-28 text-xl font-bold text-white">Your services</h2>
         {services.length === 0 ? (
           <p className="text-white/50">Your services will show up here once we set them up.</p>
         ) : (
@@ -257,7 +302,7 @@ function Dashboard() {
       </section>
 
       <section aria-labelledby="est" className="space-y-3">
-        <h2 id="est" className="text-xl font-bold text-white">Estimates</h2>
+        <h2 id="est" className="scroll-mt-28 text-xl font-bold text-white">Estimates</h2>
         {estimates.length === 0 ? (
           <p className="text-white/50">When we send you a quote, it shows up here for you to accept.</p>
         ) : (
@@ -270,7 +315,7 @@ function Dashboard() {
       </section>
 
       <section aria-labelledby="inv" className="space-y-3">
-        <h2 id="inv" className="text-xl font-bold text-white">Invoices</h2>
+        <h2 id="inv" className="scroll-mt-28 text-xl font-bold text-white">Invoices</h2>
         {invoices.length === 0 ? (
           <p className="text-white/50">No invoices yet.</p>
         ) : (
@@ -282,6 +327,111 @@ function Dashboard() {
         )}
         <p className="text-sm text-white/40">Payments go through Stripe: Apple Pay, Google Pay or card.</p>
       </section>
+    </div>
+  );
+}
+
+// ───────────────────────── Alerts ─────────────────────────
+
+function AlertsButton({ alerts, onRead }: { alerts: AppAlert[]; onRead: () => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [seen, setSeen] = useState<Set<string>>(new Set());
+  const isUnread = (a: AppAlert) => !a.read_at && !seen.has(a.id);
+  const count = alerts.filter(isUnread).length;
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [open]);
+
+  function openAlert(a: AppAlert) {
+    if (isUnread(a)) {
+      setSeen((s) => new Set(s).add(a.id));
+      markAlertsRead([a.id]).then(onRead, () => {});
+    }
+    const anchor = alertAnchor(a.url);
+    if (anchor) {
+      setOpen(false);
+      document.querySelector(anchor)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        className={`${btnSecondary} relative !px-4`}
+        aria-label={count ? `Alerts, ${count} new` : "Alerts"}
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        <i className="fa-solid fa-bell" aria-hidden />
+        {count ? (
+          <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-purple-600 px-1.5 text-[11px] font-bold text-white">
+            {count}
+          </span>
+        ) : null}
+      </button>
+
+      {open ? (
+        <>
+          <button type="button" aria-hidden tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
+          <div
+            role="dialog"
+            aria-label="Alerts"
+            className="fixed inset-x-4 top-24 z-50 overflow-hidden sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-3 sm:w-[22rem] rounded-2xl border border-white/10 bg-[#0d0a26]/95 shadow-2xl shadow-black/50 backdrop-blur-xl"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <p className="font-bold text-white">Alerts</p>
+              {count ? (
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-cyan-300 hover:text-cyan-200"
+                  onClick={() => {
+                    setSeen(new Set(alerts.map((a) => a.id)));
+                    markAlertsRead().then(onRead, () => {});
+                  }}
+                >
+                  Mark all as read
+                </button>
+              ) : null}
+            </div>
+            {alerts.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-white/50">
+                No alerts yet. We&apos;ll let you know here when we send an estimate or invoice, or something needs your attention.
+              </p>
+            ) : (
+              <ul className="max-h-[60vh] overflow-y-auto">
+                {alerts.map((a) => {
+                  const unread = isUnread(a);
+                  return (
+                    <li key={a.id}>
+                      <button
+                        type="button"
+                        onClick={() => openAlert(a)}
+                        className="flex w-full gap-3 border-b border-white/5 px-4 py-3 text-left transition hover:bg-white/5"
+                      >
+                        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${unread ? "bg-purple-500" : "bg-transparent"}`} aria-hidden />
+                        <span className="min-w-0 flex-1">
+                          <span className={`block text-sm font-semibold ${unread ? "text-white" : "text-white/60"}`}>
+                            {unread ? <span className="sr-only">New: </span> : null}
+                            {a.title}
+                          </span>
+                          {a.body ? <span className="mt-0.5 block text-sm text-white/50">{a.body}</span> : null}
+                          <span className="mt-1 block text-xs text-white/35">{timeAgo(a.created_at)}</span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <p className="px-4 py-3 text-xs text-white/40">Get these on your phone with the SohoSuccess app.</p>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
