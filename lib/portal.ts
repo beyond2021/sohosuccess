@@ -10,7 +10,16 @@ export type ServiceKind = "network" | "cameras" | "website" | "app" | "other";
 export interface Me {
   email: string;
   fullName: string;
-  clientName: string | null;
+  clientName: string | null; // null = new customer, not linked to a business yet
+  businessName: string;
+}
+export interface MyRequest {
+  id: string;
+  items: { key: string; label: string; qty: number }[];
+  low_cents: number;
+  high_cents: number;
+  status: "new" | "contacted" | "quoted" | "closed";
+  created_at: string;
 }
 export interface ClientService {
   id: string;
@@ -84,8 +93,24 @@ export async function sendCode(email: string) {
   if (error) {
     throw new Error(
       /signups not allowed|not found/i.test(error.message)
-        ? "We don't have an account for that email. Accounts are set up by SohoSuccess when you work with us."
+        ? "We don't have an account for that email yet. Click Create an account."
         : error.message,
+    );
+  }
+}
+/** New customer: emails a code; entering it creates the account. */
+export async function signUp(input: { email: string; fullName: string; business: string }) {
+  const { error } = await requireSupabase().auth.signInWithOtp({
+    email: input.email.trim().toLowerCase(),
+    options: { shouldCreateUser: true, data: { full_name: input.fullName.trim(), business: input.business.trim() } },
+  });
+  if (error) {
+    throw new Error(
+      /signups not allowed/i.test(error.message)
+        ? "New accounts are switched off right now. Please use the contact form."
+        : /rate limit|security purposes/i.test(error.message)
+          ? "Please wait a minute before asking for another code."
+          : error.message,
     );
   }
 }
@@ -104,13 +129,14 @@ export async function getMe(): Promise<Me> {
   const sb = requireSupabase();
   const { data: u } = await sb.auth.getUser();
   if (!u.user) throw new Error("Please sign in again.");
-  const { data, error } = await sb.from("profiles").select("full_name, clients(name)").eq("user_id", u.user.id).maybeSingle();
+  const { data, error } = await sb.from("profiles").select("full_name, business_name, clients(name)").eq("user_id", u.user.id).maybeSingle();
   if (error) throw error;
   const c = (data?.clients ?? null) as { name: string } | { name: string }[] | null;
   return {
     email: u.user.email ?? "",
     fullName: data?.full_name ?? "",
     clientName: Array.isArray(c) ? (c[0]?.name ?? null) : (c?.name ?? null),
+    businessName: (data as { business_name?: string } | null)?.business_name ?? "",
   };
 }
 export async function getServices(): Promise<ClientService[]> {
@@ -140,6 +166,14 @@ export async function acceptEstimate(id: string): Promise<string | null> {
 export async function declineEstimate(id: string) {
   const { error } = await requireSupabase().rpc("decline_estimate", { p_estimate: id });
   if (error) throw new Error(error.message);
+}
+export async function getMyRequests(): Promise<MyRequest[]> {
+  const { data, error } = await requireSupabase()
+    .from("estimate_requests")
+    .select("id, items, low_cents, high_cents, status, created_at")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as MyRequest[];
 }
 export async function getInvoices(): Promise<Invoice[]> {
   const { data, error } = await requireSupabase()
@@ -227,7 +261,10 @@ export async function sendEstimateRequest(input: {
 }) {
   const low = input.items.reduce((s, i) => s + i.low_cents * i.qty, 0);
   const high = input.items.reduce((s, i) => s + i.high_cents * i.qty, 0);
-  const { error } = await requireSupabase().from("estimate_requests").insert({
+  const sb = requireSupabase();
+  const { data: auth } = await sb.auth.getSession();
+  const { error } = await sb.from("estimate_requests").insert({
+    user_id: auth.session?.user.id ?? null,
     name: input.name.trim(),
     email: input.email.trim(),
     phone: input.phone.trim() || null,

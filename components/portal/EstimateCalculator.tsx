@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getPriceList, range, sendEstimateRequest, type PriceItem, type ServiceKind } from "@/lib/portal";
+import { getMe, getPriceList, range, sendEstimateRequest, type PriceItem, type ServiceKind } from "@/lib/portal";
+import { getSupabase } from "@/lib/supabase";
 import { btnPrimary, btnSecondary, card, input, label } from "./Page";
 
 const ICON: Record<ServiceKind, string> = {
@@ -22,6 +23,27 @@ export default function EstimateCalculator() {
   const [touched, setTouched] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [signedIn, setSignedIn] = useState(false);
+
+  // Signed in: fill in what we already know.
+  useEffect(() => {
+    getSupabase()
+      ?.auth.getSession()
+      .then(({ data }) => {
+        if (!data.session) return;
+        setSignedIn(true);
+        return getMe().then((me) =>
+          setForm((f) => ({
+            ...f,
+            name: f.name || me.fullName,
+            email: f.email || me.email,
+            business: f.business || me.businessName || me.clientName || "",
+          })),
+        );
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     getPriceList()
@@ -69,6 +91,14 @@ export default function EstimateCalculator() {
         <p className="mt-2 text-white/60">
           Thanks, {form.name.trim().split(" ")[0]}. We&apos;ll look at your site and email you a firm quote, usually within one business day.
         </p>
+        {signedIn ? (
+          <a href="/account" className={`${btnPrimary} mt-6`}>Track it in your account</a>
+        ) : (
+          <div className="mt-6 space-y-3">
+            <p className="text-sm text-white/55">Create a free account to follow this request and get an alert when your quote is ready.</p>
+            <a href="/account?mode=signup" className={btnPrimary}>Create an account</a>
+          </div>
+        )}
       </div>
     );
   }

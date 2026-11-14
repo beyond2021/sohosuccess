@@ -20,6 +20,10 @@ import {
   payInvoice,
   sendCode,
   shortDate,
+  signUp,
+  getMyRequests,
+  range,
+  type MyRequest,
   signInWithPassword,
   signOut,
   verifyCode,
@@ -47,6 +51,12 @@ const ESTIMATE_STATUS = {
   accepted: ["Accepted", "text-emerald-300 border-emerald-400/40"],
   declined: ["Declined", "text-white/40 border-white/15"],
   expired: ["Expired", "text-white/40 border-white/15"],
+} as const;
+const REQUEST_STATUS = {
+  new: ["Received", "text-cyan-300 border-cyan-400/40", "We're preparing your quote, usually within one business day."],
+  contacted: ["In touch", "text-purple-300 border-purple-400/40", "We've reached out to you about this request."],
+  quoted: ["Quote ready", "text-emerald-300 border-emerald-400/40", "Your quote is under Estimates."],
+  closed: ["Closed", "text-white/40 border-white/15", ""],
 } as const;
 const INVOICE_STATUS = {
   due: ["Due", "text-cyan-300 border-cyan-400/40"],
@@ -113,7 +123,11 @@ const linkBtn = "text-sm font-semibold text-cyan-300 hover:text-cyan-200";
 
 // Only rendered in the browser (after the session check), so reading localStorage here is safe.
 function SignIn() {
-  const [step, setStep] = useState<"email" | "code" | "password">(() => (readPending() ? "code" : "email"));
+  const [step, setStep] = useState<"email" | "code" | "password" | "signup">(() =>
+    readPending() ? "code" : new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "email",
+  );
+  const [name, setName] = useState("");
+  const [business, setBusiness] = useState("");
   const [email, setEmail] = useState(() => readPending() ?? "");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
@@ -138,16 +152,63 @@ function SignIn() {
     <div className="space-y-6">
       <div>
         <h1 className="text-4xl font-extrabold tracking-tight text-white md:text-5xl">
-          Client <span className="gradient-text">login</span>
+          {step === "signup" ? (
+            <>
+              Create your <span className="gradient-text">account</span>
+            </>
+          ) : (
+            <>
+              Client <span className="gradient-text">login</span>
+            </>
+          )}
         </h1>
-        <p className="mt-3 text-white/60">See your services, accept estimates and pay invoices with Apple Pay, Google Pay or card.</p>
+        <p className="mt-3 text-white/60">
+          {step === "signup"
+            ? "Free estimates with prices up front, alerts when your quote is ready, and Apple Pay when it's time to pay."
+            : "See your services, accept estimates and pay invoices with Apple Pay, Google Pay or card."}
+        </p>
       </div>
+
+      {step !== "code" ? (
+        <div role="tablist" aria-label="Sign in or create an account" className="grid grid-cols-2 gap-1 rounded-full border border-white/10 bg-white/5 p-1">
+          {(
+            [
+              ["email", "Sign in"],
+              ["signup", "Create account"],
+            ] as const
+          ).map(([s, text]) => {
+            const active = s === "signup" ? step === "signup" : step !== "signup";
+            return (
+              <button
+                key={s}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => { setStep(s); setError(null); }}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${active ? "bg-white text-[#0d0a26]" : "text-white/60 hover:text-white"}`}
+              >
+                {text}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       <form
         className={`${card} space-y-4`}
         onSubmit={(e) => {
           e.preventDefault();
-          if (step === "email") run(async () => { await sendCode(email); savePending(email.trim()); setCode(""); setStep("code"); });
+          if (step === "signup")
+            run(async () => {
+              if (!name.trim()) throw new Error("Please enter your name.");
+              if (!emailOk) throw new Error("Enter a valid email address.");
+              await signUp({ email: email.trim(), fullName: name, business });
+              savePending(email.trim());
+              setCode("");
+              setNotice("Enter the code to finish creating your account.");
+              setStep("code");
+            });
+          else if (step === "email") run(async () => { await sendCode(email); savePending(email.trim()); setCode(""); setStep("code"); });
           else if (step === "code") run(async () => { await verifyCode(email, code); savePending(null); });
           else run(() => signInWithPassword(email, password));
         }}
@@ -172,6 +233,18 @@ function SignIn() {
           </>
         ) : (
           <>
+            {step === "signup" ? (
+              <>
+                <div>
+                  <label htmlFor="name" className={label}>Your name</label>
+                  <input id="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Smith" className={input} />
+                </div>
+                <div>
+                  <label htmlFor="business" className={label}>Business name (optional)</label>
+                  <input id="business" autoComplete="organization" value={business} onChange={(e) => setBusiness(e.target.value)} placeholder="Corner Bakery" className={input} />
+                </div>
+              </>
+            ) : null}
             <div>
               <label htmlFor="email" className={label}>Email</label>
               <input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourbusiness.com" className={input} />
@@ -189,11 +262,13 @@ function SignIn() {
         {notice && !error ? <p className="text-sm text-white/60">{notice}</p> : null}
 
         <button type="submit" className={`${btnPrimary} w-full`} disabled={busy || (step === "code" && code.length < 6)}>
-          {busy ? "One moment…" : step === "email" ? "Email me a sign-in code" : "Sign in"}
+          {busy ? "One moment…" : step === "signup" ? "Create my account" : step === "email" ? "Email me a sign-in code" : "Sign in"}
         </button>
 
         <div className="flex flex-col items-center gap-2 text-center">
-          {step === "email" ? (
+          {step === "signup" ? (
+            <p className="text-sm text-white/45">We&apos;ll email you a code to confirm it&apos;s you. No password needed.</p>
+          ) : step === "email" ? (
             <>
               <button
                 type="button"
@@ -240,7 +315,7 @@ function SignIn() {
       </form>
 
       <p className="text-sm text-white/40">
-        Not a client yet? Accounts are set up when you work with us. <a href="/estimate" className="text-cyan-300 hover:text-cyan-200">Get an estimate</a> or{" "}
+        Just looking? <a href="/estimate" className="text-cyan-300 hover:text-cyan-200">Get a free estimate</a> without an account, or{" "}
         <a href="/#contact" className="text-cyan-300 hover:text-cyan-200">contact us</a>.
       </p>
     </div>
@@ -250,6 +325,7 @@ function SignIn() {
 // ───────────────────────── Dashboard ─────────────────────────
 
 interface Data {
+  requests: MyRequest[];
   alerts: AppAlert[];
   me: Me;
   services: ClientService[];
@@ -263,14 +339,15 @@ function Dashboard() {
 
   const load = useCallback(async () => {
     try {
-      const [me, services, estimates, invoices, alerts] = await Promise.all([
+      const [me, services, estimates, invoices, alerts, requests] = await Promise.all([
         getMe(),
         getServices(),
         getEstimates(),
         getInvoices(),
         getAlerts().catch(() => [] as AppAlert[]),
+        getMyRequests().catch(() => [] as MyRequest[]),
       ]);
-      setData({ me, services, estimates, invoices, alerts });
+      setData({ me, services, estimates, invoices, alerts, requests });
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load your account.");
@@ -311,7 +388,7 @@ function Dashboard() {
   }
   if (!data) return <p className="text-white/50">Loading your account…</p>;
 
-  const { me, services, estimates, invoices, alerts } = data;
+  const { me, services, estimates, invoices, alerts, requests } = data;
   const down = services.filter((s) => s.status === "down");
 
   return (
@@ -319,7 +396,7 @@ function Dashboard() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-white/50">{me.fullName ? `Hi, ${me.fullName.split(" ")[0]}` : "Welcome"}</p>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white md:text-4xl">{me.clientName ?? "Your account"}</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white md:text-4xl">{me.clientName ?? (me.businessName || "Your account")}</h1>
         </div>
         <div className="flex items-center gap-3">
           <AlertsButton alerts={alerts} onRead={load} />
@@ -337,9 +414,45 @@ function Dashboard() {
       ) : null}
 
       {!me.clientName ? (
-        <p className={`${card} text-white/70`}>Your account isn&apos;t linked to a business yet. We&apos;ll connect it shortly.</p>
+        <section aria-labelledby="req" className="space-y-3">
+          <div className="flex items-end justify-between gap-4">
+            <h2 id="req" className="scroll-mt-28 text-xl font-bold text-white">Your requests</h2>
+            {requests.length ? (
+              <a href="/estimate" className="text-sm font-semibold text-cyan-300 hover:text-cyan-200">New estimate</a>
+            ) : null}
+          </div>
+          {requests.length === 0 ? (
+            <div className={`${card} space-y-4`}>
+              <div className="flex gap-4">
+                <i className="fa-solid fa-calculator mt-1 text-xl text-cyan-300" aria-hidden />
+                <div>
+                  <p className="font-semibold text-white">Start with a free estimate</p>
+                  <p className="text-sm text-white/55">Pick what you need (Wi-Fi, cameras, a website or an app) and see a price range right away.</p>
+                </div>
+              </div>
+              <a href="/estimate" className={btnPrimary}>Get a free estimate</a>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {requests.map((r) => {
+                const [text, cls, note] = REQUEST_STATUS[r.status];
+                return (
+                  <li key={r.id} className={`${card} flex items-start justify-between gap-4`}>
+                    <div className="space-y-1.5">
+                      <p className="font-semibold text-white">{r.items.map((i) => (i.qty > 1 ? `${i.qty} × ${i.label}` : i.label)).join(", ")}</p>
+                      <Pill text={text} cls={cls} />
+                      {note ? <p className="text-sm text-white/55">{note}</p> : null}
+                    </div>
+                    <p className="whitespace-nowrap font-extrabold text-white">{range(r.low_cents, r.high_cents)}</p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       ) : null}
 
+      {me.clientName ? (
       <section aria-labelledby="svc" className="space-y-3">
         <h2 id="svc" className="scroll-mt-28 text-xl font-bold text-white">Your services</h2>
         {services.length === 0 ? (
@@ -359,7 +472,9 @@ function Dashboard() {
           </ul>
         )}
       </section>
+      ) : null}
 
+      {me.clientName || estimates.length ? (
       <section aria-labelledby="est" className="space-y-3">
         <h2 id="est" className="scroll-mt-28 text-xl font-bold text-white">Estimates</h2>
         {estimates.length === 0 ? (
@@ -372,7 +487,9 @@ function Dashboard() {
           </ul>
         )}
       </section>
+      ) : null}
 
+      {me.clientName || invoices.length ? (
       <section aria-labelledby="inv" className="space-y-3">
         <h2 id="inv" className="scroll-mt-28 text-xl font-bold text-white">Invoices</h2>
         {invoices.length === 0 ? (
@@ -386,6 +503,7 @@ function Dashboard() {
         )}
         <p className="text-sm text-white/40">Payments go through Stripe: Apple Pay, Google Pay or card.</p>
       </section>
+      ) : null}
     </div>
   );
 }
