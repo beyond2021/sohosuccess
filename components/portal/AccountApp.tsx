@@ -131,7 +131,7 @@ function SignIn() {
         {step === "code" ? (
           <>
             <p className="text-white/70">
-              We emailed a 6-digit code to <strong className="text-white">{email.trim()}</strong>.
+              We emailed a sign-in code to <strong className="text-white">{email.trim()}</strong>.
             </p>
             <div>
               <label htmlFor="code" className={label}>Code</label>
@@ -140,9 +140,9 @@ function SignIn() {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
                 placeholder="123456"
-                className={`${input} text-center text-2xl font-bold tracking-[0.5em]`}
+                className={`${input} text-center text-2xl font-bold tracking-[0.35em]`}
               />
             </div>
           </>
@@ -163,7 +163,7 @@ function SignIn() {
 
         {error ? <p className="text-sm font-semibold text-rose-300">{error}</p> : null}
 
-        <button type="submit" className={`${btnPrimary} w-full`} disabled={busy || (step === "code" && code.length !== 6)}>
+        <button type="submit" className={`${btnPrimary} w-full`} disabled={busy || (step === "code" && code.length < 6)}>
           {busy ? "One moment…" : step === "email" ? "Email me a sign-in code" : "Sign in"}
         </button>
 
