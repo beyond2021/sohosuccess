@@ -1,0 +1,201 @@
+"use client";
+
+// Client portal and estimates for the website. Same tables and rules as the app
+// (sohosuccess-mobile/supabase/migrations). Row-level security makes sure each
+// client only ever sees their own business.
+import { requireSupabase } from "./supabase";
+
+export type ServiceKind = "network" | "cameras" | "website" | "app" | "other";
+
+export interface Me {
+  email: string;
+  fullName: string;
+  clientName: string | null;
+}
+export interface ClientService {
+  id: string;
+  kind: ServiceKind;
+  name: string;
+  status: "ok" | "attention" | "down";
+  note: string;
+}
+export interface EstimateItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_cents: number;
+}
+export interface Estimate {
+  id: string;
+  number: string;
+  title: string;
+  notes: string;
+  status: "sent" | "accepted" | "declined" | "expired";
+  deposit_percent: number;
+  valid_until: string | null;
+  items: EstimateItem[];
+}
+export interface Invoice {
+  id: string;
+  number: string;
+  kind: "deposit" | "final" | "other";
+  description: string;
+  amount_cents: number;
+  currency: string;
+  status: "due" | "paid" | "overdue" | "void";
+  due_date: string | null;
+  pay_url: string | null;
+}
+export interface PriceItem {
+  key: string;
+  category: ServiceKind;
+  label: string;
+  unit: string;
+  low_cents: number;
+  high_cents: number;
+  max_qty: number;
+}
+
+export const money = (cents: number, currency = "usd") =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
+export const range = (low: number, high: number) => {
+  const f = (c: number) => money(c).replace(/\.00$/, "");
+  return low === high ? f(low) : `${f(low)} – ${f(high)}`;
+};
+export const shortDate = (iso: string) =>
+  new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+export const estimateTotal = (items: EstimateItem[]) => Math.round(items.reduce((s, i) => s + i.quantity * i.unit_cents, 0));
+
+// ── Sign-in ──
+export async function sendCode(email: string) {
+  const { error } = await requireSupabase().auth.signInWithOtp({
+    email: email.trim().toLowerCase(),
+    options: { shouldCreateUser: false },
+  });
+  if (error) {
+    throw new Error(
+      /signups not allowed|not found/i.test(error.message)
+        ? "We don't have an account for that email. Accounts are set up by SohoSuccess when you work with us."
+        : error.message,
+    );
+  }
+}
+export async function verifyCode(email: string, code: string) {
+  const { error } = await requireSupabase().auth.verifyOtp({ email: email.trim().toLowerCase(), token: code.trim(), type: "email" });
+  if (error) throw new Error("That code didn't work. Check it, or send a new one.");
+}
+export async function signInWithPassword(email: string, password: string) {
+  const { error } = await requireSupabase().auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+  if (error) throw new Error("Email or password is wrong.");
+}
+export const signOut = () => requireSupabase().auth.signOut();
+
+// ── Account data ──
+export async function getMe(): Promise<Me> {
+  const sb = requireSupabase();
+  const { data: u } = await sb.auth.getUser();
+  if (!u.user) throw new Error("Please sign in again.");
+  const { data, error } = await sb.from("profiles").select("full_name, clients(name)").eq("user_id", u.user.id).maybeSingle();
+  if (error) throw error;
+  const c = (data?.clients ?? null) as { name: string } | { name: string }[] | null;
+  return {
+    email: u.user.email ?? "",
+    fullName: data?.full_name ?? "",
+    clientName: Array.isArray(c) ? (c[0]?.name ?? null) : (c?.name ?? null),
+  };
+}
+export async function getServices(): Promise<ClientService[]> {
+  const { data, error } = await requireSupabase().from("client_services").select("id, kind, name, status, note").order("kind").order("name");
+  if (error) throw error;
+  return (data ?? []) as ClientService[];
+}
+export async function getEstimates(): Promise<Estimate[]> {
+  const { data, error } = await requireSupabase()
+    .from("estimates")
+    .select("id, number, title, notes, status, deposit_percent, valid_until, items:estimate_items(id, description, quantity, unit_cents, sort_order)")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((e: any) => ({
+    ...e,
+    items: [...(e.items ?? [])]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((i) => ({ id: i.id, description: i.description, quantity: Number(i.quantity), unit_cents: i.unit_cents })),
+  }));
+}
+export async function acceptEstimate(id: string): Promise<string | null> {
+  const { data, error } = await requireSupabase().rpc("accept_estimate", { p_estimate: id });
+  if (error) throw new Error(error.message);
+  return (data as string | null) ?? null;
+}
+export async function declineEstimate(id: string) {
+  const { error } = await requireSupabase().rpc("decline_estimate", { p_estimate: id });
+  if (error) throw new Error(error.message);
+}
+export async function getInvoices(): Promise<Invoice[]> {
+  const { data, error } = await requireSupabase()
+    .from("invoices")
+    .select("id, number, kind, description, amount_cents, currency, status, due_date, pay_url")
+    .neq("status", "void")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Invoice[];
+}
+
+/** Sends the browser to Stripe's payment page (Apple Pay, Google Pay, card). */
+export async function payInvoice(invoice: Pick<Invoice, "id" | "pay_url">) {
+  if (invoice.pay_url) {
+    window.location.href = invoice.pay_url;
+    return;
+  }
+  const { data, error } = await requireSupabase().functions.invoke("create-checkout", {
+    method: "POST",
+    body: { invoice_id: invoice.id, from: "web" },
+  });
+  if (error || !data?.url) {
+    let message = "Couldn't start the payment. Please try again.";
+    try {
+      const ctx = (error as { context?: Response } | null)?.context;
+      const body = ctx ? await ctx.json() : data;
+      if (body?.error) message = body.error;
+    } catch {
+      /* keep default */
+    }
+    throw new Error(message);
+  }
+  window.location.href = data.url as string;
+}
+
+// ── Public estimate ──
+export async function getPriceList(): Promise<PriceItem[]> {
+  const { data, error } = await requireSupabase()
+    .from("price_items")
+    .select("key, category, label, unit, low_cents, high_cents, max_qty")
+    .eq("published", true)
+    .order("sort_order");
+  if (error) throw error;
+  return (data ?? []) as PriceItem[];
+}
+export async function sendEstimateRequest(input: {
+  name: string;
+  email: string;
+  phone: string;
+  business: string;
+  notes: string;
+  items: { key: string; label: string; qty: number; low_cents: number; high_cents: number }[];
+}) {
+  const low = input.items.reduce((s, i) => s + i.low_cents * i.qty, 0);
+  const high = input.items.reduce((s, i) => s + i.high_cents * i.qty, 0);
+  const { error } = await requireSupabase().from("estimate_requests").insert({
+    name: input.name.trim(),
+    email: input.email.trim(),
+    phone: input.phone.trim() || null,
+    business: input.business.trim() || null,
+    notes: input.notes.trim(),
+    items: input.items,
+    low_cents: low,
+    high_cents: high,
+    source: "web",
+  });
+  if (error) throw new Error("Couldn't send your request. Please try again.");
+}

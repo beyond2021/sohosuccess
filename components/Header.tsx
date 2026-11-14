@@ -36,6 +36,12 @@ export default function Header() {
           <a href="#contact" className="hover:text-white transition">
             Contact
           </a>
+          <a href="/estimate" className="hover:text-white transition">
+            Estimate
+          </a>
+          <a href="/account" className="hover:text-white transition">
+            Client login
+          </a>
         </nav>
         <div className="flex items-center gap-4">
           <a
@@ -83,9 +89,23 @@ export default function Header() {
           <a
             href="#contact"
             onClick={close}
-            className="hover:text-white transition py-1"
+            className="hover:text-white transition py-1 border-b border-white/5"
           >
             Contact
+          </a>
+          <a
+            href="/estimate"
+            onClick={close}
+            className="hover:text-white transition py-1 border-b border-white/5"
+          >
+            Get an estimate
+          </a>
+          <a
+            href="/account"
+            onClick={close}
+            className="hover:text-white transition py-1"
+          >
+            Client login
           </a>
           <a
             href="#contact"
