@@ -27,6 +27,8 @@ type Request = {
   name: string;
   email: string;
   phone: string | null;
+  site_address?: string | null;
+  site_zip?: string | null;
   business: string | null;
   notes: string;
   source: string;
@@ -452,7 +454,7 @@ function EstimateEditor({ sb, id, onClose }: { sb: SupabaseClient; id: string; o
       const [{ data: e }, { data: its }, { data: r }] = await Promise.all([
         sb.from("estimates").select("number, title, notes, status, deposit_percent, valid_until, est_duration, clients(name)").eq("id", id).single(),
         sb.from("estimate_items").select("id, description, quantity, unit_cents").eq("estimate_id", id).order("sort_order"),
-        sb.from("estimate_requests").select("name, email, phone, business, notes, source, created_at, rooms, survey").eq("estimate_id", id).maybeSingle(),
+        sb.from("estimate_requests").select("name, email, phone, business, notes, source, created_at, site_address, site_zip, rooms, survey").eq("estimate_id", id).maybeSingle(),
       ]);
       setEst(e as never);
       setItems(((its ?? []) as Item[]).map((i) => ({ ...i, quantity: Number(i.quantity) })));
@@ -534,6 +536,9 @@ function EstimateEditor({ sb, id, onClose }: { sb: SupabaseClient; id: string; o
           <div className="grid gap-1 text-sm text-white/80 sm:grid-cols-2">
             <p><b className="text-white">{req.name}</b>{req.business ? ` · ${req.business}` : ""}</p>
             <p><a className="text-cyan-300" href={`mailto:${req.email}`}>{req.email}</a>{req.phone ? <> · <a className="text-cyan-300" href={`tel:${req.phone}`}>{req.phone}</a></> : null}</p>
+            {req.site_address ? (
+              <p><a className="text-cyan-300" target="_blank" rel="noreferrer" href={`https://maps.apple.com/?q=${encodeURIComponent(`${req.site_address} ${req.site_zip ?? ""}`)}`}><i className="fa-solid fa-location-dot mr-1" aria-hidden />{req.site_address} {req.site_zip}</a></p>
+            ) : null}
             <p className="text-white/50">From the {req.source === "web" ? "website" : "app"}, {new Date(req.created_at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</p>
           </div>
           {req.notes ? <p className="whitespace-pre-line rounded-xl bg-white/5 p-3 text-sm text-white/80">{req.notes}</p> : null}

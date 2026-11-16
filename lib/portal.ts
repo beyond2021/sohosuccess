@@ -161,15 +161,34 @@ export async function getMe(): Promise<Me> {
     businessName: (data as { business_name?: string } | null)?.business_name ?? "",
   };
 }
+/**
+ * The signed-in person's own user id and business. Client login only ever shows their own rows,
+ * even for an admin account (admins can read every row, which is for /admin, not here).
+ */
+async function mine() {
+  const sb = requireSupabase();
+  const { data: u } = await sb.auth.getUser();
+  const uid = u.user?.id ?? null;
+  if (!uid) return { uid: null, cid: null as string | null };
+  const { data } = await sb.from("profiles").select("client_id").eq("user_id", uid).maybeSingle();
+  return { uid, cid: (data as { client_id: string | null } | null)?.client_id ?? null };
+}
+
 export async function getServices(): Promise<ClientService[]> {
-  const { data, error } = await requireSupabase().from("client_services").select("id, kind, name, status, note").order("kind").order("name");
+  const { cid } = await mine();
+  if (!cid) return [];
+  const { data, error } = await requireSupabase().from("client_services").select("id, kind, name, status, note").eq("client_id", cid).order("kind").order("name");
   if (error) throw error;
   return (data ?? []) as ClientService[];
 }
 export async function getEstimates(): Promise<Estimate[]> {
+  const { cid } = await mine();
+  if (!cid) return [];
   const { data, error } = await requireSupabase()
     .from("estimates")
     .select("id, number, title, notes, status, deposit_percent, valid_until, items:estimate_items(id, description, quantity, unit_cents, sort_order)")
+    .eq("client_id", cid)
+    .neq("status", "draft") // drafts are yours to price in /admin; customers see a quote once it's sent
     .order("created_at", { ascending: false });
   if (error) throw error;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -190,17 +209,23 @@ export async function declineEstimate(id: string) {
   if (error) throw new Error(error.message);
 }
 export async function getMyRequests(): Promise<MyRequest[]> {
+  const { uid } = await mine();
+  if (!uid) return [];
   const { data, error } = await requireSupabase()
     .from("estimate_requests")
     .select("id, items, low_cents, high_cents, status, created_at")
+    .eq("user_id", uid)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as MyRequest[];
 }
 export async function getInvoices(): Promise<Invoice[]> {
+  const { cid } = await mine();
+  if (!cid) return [];
   const { data, error } = await requireSupabase()
     .from("invoices")
     .select("id, number, kind, description, amount_cents, currency, status, due_date, pay_url")
+    .eq("client_id", cid)
     .neq("status", "void")
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -280,6 +305,8 @@ export async function sendEstimateRequest(input: {
   business: string;
   notes: string;
   items: { key: string; label: string; qty: number; low_cents: number; high_cents: number }[];
+  siteAddress?: string;
+  siteZip?: string;
 }) {
   const low = input.items.reduce((s, i) => s + i.low_cents * i.qty, 0);
   const high = input.items.reduce((s, i) => s + i.high_cents * i.qty, 0);
@@ -295,7 +322,10 @@ export async function sendEstimateRequest(input: {
     items: input.items,
     low_cents: low,
     high_cents: high,
+    site_address: input.siteAddress?.trim() || null,
+    site_zip: input.siteZip?.trim() || null,
     source: "web",
   });
-  if (error) throw new Error("Couldn't send your request. Please try again.");
+  // P0001 = a rule from Supabase (e.g. admin accounts can't request estimates): show its message.
+  if (error) throw new Error(error.code === "P0001" ? error.message : "Couldn't send your request. Please try again.");
 }

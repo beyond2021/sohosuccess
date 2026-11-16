@@ -13,13 +13,15 @@ const ICON: Record<ServiceKind, string> = {
   other: "fa-solid fa-screwdriver-wrench",
 };
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+// On-site work (Wi-Fi, cabling, cameras) is Manhattan only. Supabase checks this too.
+const isManhattanZip = (z: string) => /^10[0-2]\d\d$/.test(z.trim()) && Number(z.trim()) >= 10001;
 
 export default function EstimateCalculator() {
   const [prices, setPrices] = useState<PriceItem[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [step, setStep] = useState<"pick" | "details" | "sent">("pick");
-  const [form, setForm] = useState({ name: "", email: "", phone: "", business: "", notes: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", business: "", notes: "", street: "", unit: "", zip: "" });
   const [touched, setTouched] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,20 +58,36 @@ export default function EstimateCalculator() {
   const high = chosen.reduce((s, { p, n }) => s + p.high_cents * n, 0);
   const set = (p: PriceItem, n: number) => setQty((q) => ({ ...q, [p.key]: Math.max(0, Math.min(p.max_qty, n)) }));
 
+  const onSite = chosen.some(({ p }) => p.category === "network" || p.category === "cameras");
   const errors = {
     name: form.name.trim() ? null : "Please enter your name.",
     email: EMAIL.test(form.email.trim()) ? null : "Enter a valid email address.",
+    addr: !onSite
+      ? null
+      : !form.street.trim()
+        ? "Please add the address where we'll do the work."
+        : !/^\d{5}$/.test(form.zip.trim())
+          ? "Please add the 5-digit ZIP code."
+          : !isManhattanZip(form.zip)
+            ? "We only do on-site work in Manhattan right now. Please use a Manhattan ZIP (10001–10299)."
+            : null,
   };
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
     setTouched(true);
-    if (errors.name || errors.email) return;
+    if (errors.name || errors.email || errors.addr) return;
     setSending(true);
     setError(null);
     try {
       await sendEstimateRequest({
-        ...form,
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        business: form.business,
+        notes: form.notes,
+        siteAddress: onSite ? [form.street.trim(), form.unit.trim(), "New York, NY"].filter(Boolean).join(", ") : undefined,
+        siteZip: onSite ? form.zip.trim() : undefined,
         items: chosen.map(({ p, n }) => ({ key: p.key, label: p.label, qty: n, low_cents: p.low_cents, high_cents: p.high_cents })),
       });
       setStep("sent");
@@ -151,6 +169,35 @@ export default function EstimateCalculator() {
             ) : null}
           </div>
         ))}
+        {onSite ? (
+          <div className="grid gap-3">
+            <p className="text-sm text-white/60">
+              <i className="fa-solid fa-location-dot mr-2 text-cyan-300" aria-hidden />
+              We do on-site work in Manhattan, NYC.
+            </p>
+            <div>
+              <label htmlFor="est-street" className={label}>
+                Site address
+              </label>
+              <input id="est-street" value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} placeholder="350 5th Ave" autoComplete="address-line1" className={input} />
+            </div>
+            <div className="grid grid-cols-[1fr_8rem] gap-3">
+              <div>
+                <label htmlFor="est-unit" className={label}>
+                  Floor / suite (optional)
+                </label>
+                <input id="est-unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="Fl 12" autoComplete="address-line2" className={input} />
+              </div>
+              <div>
+                <label htmlFor="est-zip" className={label}>
+                  ZIP
+                </label>
+                <input id="est-zip" inputMode="numeric" value={form.zip} onChange={(e) => setForm({ ...form, zip: e.target.value.replace(/\D/g, "").slice(0, 5) })} placeholder="10001" autoComplete="postal-code" className={input} />
+              </div>
+            </div>
+            {touched && errors.addr ? <p className="text-sm font-semibold text-rose-300">{errors.addr}</p> : null}
+          </div>
+        ) : null}
         <div>
           <label htmlFor="est-notes" className={label}>
             Anything we should know? (optional)

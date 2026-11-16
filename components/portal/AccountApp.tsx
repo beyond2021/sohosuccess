@@ -693,7 +693,7 @@ function EstimateCard({ estimate: e, onChange }: { estimate: Estimate; onChange:
   const [error, setError] = useState<string | null>(null);
   const total = estimateTotal(e.items);
   const deposit = Math.round((total * e.deposit_percent) / 100);
-  const [label_, cls] = ESTIMATE_STATUS[e.status];
+  const [label_, cls] = ESTIMATE_STATUS[e.status] ?? ["", "text-white/40 border-white/15"];
 
   async function run(kind: string, fn: () => Promise<void>) {
     setBusy(kind);
