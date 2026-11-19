@@ -3,7 +3,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
 /** Page frame for the estimate, account and payment pages: same look as the home page. */
-export default function PortalPage({ children }: { children: ReactNode }) {
+/** wide: the staff page (spreadsheet needs the room). Every other page keeps the narrow column. */
+export default function PortalPage({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   return (
     <>
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
@@ -11,7 +12,7 @@ export default function PortalPage({ children }: { children: ReactNode }) {
         <div className="orb w-[320px] h-[320px] md:w-[600px] md:h-[600px] bg-blue-600/20 bottom-[-20%] right-[-10%]" />
       </div>
       <Header />
-      <main className="relative mx-auto max-w-3xl px-6 pb-24 pt-28 md:pt-32">{children}</main>
+      <main className={`relative mx-auto ${wide ? "max-w-[1680px]" : "max-w-3xl"} px-6 pb-24 pt-28 md:pt-32`}>{children}</main>
       <Footer />
     </>
   );

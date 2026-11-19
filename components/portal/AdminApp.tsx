@@ -3,7 +3,7 @@
 // Staff page: every estimate customers send from the app or website, with their photos and room
 // sizes, ready to price and send. Same Supabase project; row-level security only lets admins
 // (profiles.is_admin = true) read and change these rows.
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { getAdminSupabase } from "@/lib/supabase";
 import { money } from "@/lib/portal";
@@ -11,16 +11,73 @@ import { btnPrimary, btnSecondary, card, input, label } from "./Page";
 
 type Status = "draft" | "sent" | "accepted" | "declined" | "expired";
 type Item = { id?: string; description: string; quantity: number; unit_cents: number };
-type Row = {
-  id: string;
-  number: string;
-  title: string;
-  status: Status;
-  created_at: string;
-  clients: { name: string } | null;
-  estimate_items: { quantity: number; unit_cents: number }[];
+
+/** Service type → label (Supabase sets estimates.service). */
+const SERVICE_LABEL: Record<string, string> = {
+  cameras: "Security cameras",
+  internet: "Office internet",
+  website: "Website",
+  app: "App",
+  intercom: "Entry & intercom",
+  pos: "Restaurant POS",
+  media: "Media room",
+  other: "Other",
 };
-type Pipeline = { ref: string; customer: string; title: string; stage: string; whose_turn: string; days: number; status: string };
+const serviceLabel = (s: string | null | undefined) => (s ? SERVICE_LABEL[s] ?? s : "Other");
+/** One sale on the live board (Supabase table sales_board, updated by Supabase, sent live by Realtime). */
+type BoardRow = {
+  ref: string;
+  customer: string;
+  email: string | null;
+  service: string | null;
+  title: string;
+  step: number;
+  stage: string;
+  whose_turn: "customer" | "you" | "-";
+  headline: string;
+  detail: string | null;
+  action: string | null;
+  amount_cents: number | null;
+  since: string | null;
+  updated_at: string | null;
+  estimate_id: string | null;
+};
+/** Every stage a sale moves through, in order (Supabase sale_rows sets sales_board.stage). */
+const STAGES: { key: string; label: string; who: "you" | "customer" | "-" }[] = [
+  { key: "request", label: "Request", who: "you" },
+  { key: "quote", label: "Quote", who: "customer" },
+  { key: "deposit", label: "Deposit", who: "customer" },
+  { key: "times_pending", label: "Find times", who: "you" },
+  { key: "pick_time", label: "Pick time", who: "customer" },
+  { key: "booked", label: "Booked", who: "you" },
+  { key: "working", label: "Working", who: "you" },
+  { key: "approve", label: "Approve", who: "customer" },
+  { key: "final", label: "Final pay", who: "customer" },
+  { key: "review", label: "Review", who: "customer" },
+  { key: "done", label: "Done", who: "-" },
+];
+const stageIndex = (stage: string) => STAGES.findIndex((s) => s.key === stage);
+const stageLabel = (stage: string) => STAGES[stageIndex(stage)]?.label ?? stage;
+type SortKey = "ref" | "customer" | "service" | "stage" | "turn" | "amount" | "days" | "updated";
+const shortDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—";
+const BOARD_FILTERS = [
+  { key: "pricing", label: "Needs pricing" },
+  { key: "you", label: "Your turn" },
+  { key: "customer", label: "Customer's turn" },
+  { key: "open", label: "All open" },
+  { key: "done", label: "Done" },
+] as const;
+type BoardFilter = (typeof BOARD_FILTERS)[number]["key"];
+// Every list comes from the same place: the board Supabase keeps (sales_board).
+const inBoard = (r: BoardRow, k: BoardFilter) =>
+  k === "pricing" ? r.stage === "request" : k === "done" ? r.stage === "done" : k === "open" ? r.stage !== "done" : r.whose_turn === k && r.stage !== "done";
+const TURN_STYLE: Record<BoardRow["whose_turn"], [string, string]> = {
+  you: ["Your turn", "text-cyan-300 border-cyan-400/50"],
+  customer: ["Customer", "text-violet-300 border-violet-400/50"],
+  "-": ["Done", "text-emerald-300 border-emerald-400/50"],
+};
+const daysSince = (iso: string | null) => (iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)) : 0);
 type Photo = { path: string; kind: string; note: string; text?: string[]; outdoor?: boolean; sees?: string[] };
 type Room = { name?: string; width_ft: number; length_ft: number; area_sqft: number; doors: number; windows: number; manual?: boolean };
 type Request = {
@@ -48,12 +105,6 @@ const STATUS: Record<Status, [string, string]> = {
   declined: ["Declined", "text-rose-300 border-rose-400/40"],
   expired: ["Expired", "text-white/40 border-white/15"],
 };
-const FILTERS: { key: Status | "all"; label: string }[] = [
-  { key: "draft", label: "Needs pricing" },
-  { key: "sent", label: "Sent" },
-  { key: "accepted", label: "Accepted" },
-  { key: "all", label: "All" },
-];
 const PHOTO_KIND: Record<string, string> = {
   camera_spot: "Camera spot",
   recorder: "Recorder spot",
@@ -312,9 +363,7 @@ function Team({ sb, me }: { sb: SupabaseClient; me: string }) {
 // ───────────────────────── List ─────────────────────────
 
 function Admin({ sb, email }: { sb: SupabaseClient; email: string }) {
-  const [filter, setFilter] = useState<Status | "all">("draft");
-  const [rows, setRows] = useState<Row[] | null>(null);
-  const [pipeline, setPipeline] = useState<Pipeline[]>([]);
+  const [sales, setSales] = useState<BoardRow[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -323,25 +372,30 @@ function Admin({ sb, email }: { sb: SupabaseClient; email: string }) {
 
   useEffect(() => {
     let live = true;
-    let q = sb
-      .from("estimates")
-      .select("id, number, title, status, created_at, clients(name), estimate_items(quantity, unit_cents)")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (filter !== "all") q = q.eq("status", filter);
-    Promise.all([q, sb.rpc("sales_pipeline")]).then(([{ data, error: e1 }, { data: p }]) => {
+    sb.from("sales_board").select("*").order("since", { ascending: false }).then(({ data, error: e }) => {
       if (!live) return;
-      setError(e1 ? e1.message : null);
-      setRows((data ?? []) as unknown as Row[]);
-      setPipeline((p ?? []) as Pipeline[]);
+      setError(e ? e.message : null);
+      setSales((data ?? []) as BoardRow[]);
     });
     return () => {
       live = false;
     };
-  }, [sb, filter, tick]);
+  }, [sb, tick]);
+
+  // Live: Supabase Realtime tells us when any sale changes, and we reload.
+  useEffect(() => {
+    const ch = sb
+      .channel(`sales-board-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_board" }, () => setTick((t) => t + 1))
+      .subscribe();
+    return () => {
+      sb.removeChannel(ch);
+    };
+  }, [sb]);
 
   if (open) {
     return (
+      <div className="mx-auto max-w-3xl">
       <EstimateEditor
         sb={sb}
         id={open}
@@ -350,10 +404,17 @@ function Admin({ sb, email }: { sb: SupabaseClient; email: string }) {
           load();
         }}
       />
+      </div>
     );
   }
 
-  const yourTurn = pipeline.filter((p) => p.whose_turn === "you");
+  // Open a board row: its estimate (a request gets its draft estimate made first).
+  async function openSale(r: BoardRow) {
+    if (r.estimate_id) return setOpen(r.estimate_id);
+    const { data, error: e } = await sb.rpc("admin_open_ref", { p_ref: r.ref });
+    if (e || !data) return setError(e?.message ?? `Couldn't open ${r.ref}.`);
+    setOpen(data as string);
+  }
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -364,69 +425,199 @@ function Admin({ sb, email }: { sb: SupabaseClient; email: string }) {
         <button className={btnSecondary} onClick={() => sb.auth.signOut()}>Sign out</button>
       </div>
 
-      {yourTurn.length ? (
-        <div className={card}>
-          <h2 className="text-sm font-bold uppercase tracking-wide text-white/60">Waiting on you</h2>
-          <ul className="mt-3 divide-y divide-white/10">
-            {yourTurn.map((p) => (
-              <li key={p.ref} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
-                <span className="text-white">
-                  <b>{p.customer}</b> · {p.title}
-                </span>
-                <span className="text-white/50">
-                  {p.status} · {p.days} {p.days === 1 ? "day" : "days"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      <SalesSheet sales={sales} onOpen={openSale} />
 
-      <div className="flex flex-wrap gap-2" role="tablist">
-        {FILTERS.map((f) => (
+      {error ? <p className="text-rose-300">{error}</p> : null}
+
+      <Team sb={sb} me={email} />
+    </div>
+  );
+}
+
+// ───────────────────────── Sales spreadsheet ─────────────────────────
+
+/** A spreadsheet column name you can click to sort by. */
+function Th({ k, sort, onSort, children, right, extra = "" }: {
+  k: SortKey;
+  sort: { key: SortKey; desc: boolean };
+  onSort: (k: SortKey) => void;
+  children: ReactNode;
+  right?: boolean;
+  extra?: string;
+}) {
+  return (
+    <th className={`whitespace-nowrap border-b border-white/10 px-3 py-2 font-semibold ${right ? "text-right" : ""} ${extra}`}>
+      <button
+        type="button"
+        onClick={() => onSort(k)}
+        className={`inline-flex items-center gap-1 uppercase tracking-wide hover:text-white ${sort.key === k ? "text-white" : ""}`}
+      >
+        {children}
+        <span aria-hidden className="text-[10px]">{sort.key === k ? (sort.desc ? "▼" : "▲") : ""}</span>
+      </button>
+    </th>
+  );
+}
+
+/** Every sale as one row, every stage as a column: ✓ done, ● where it is now, blank still to come. */
+function SalesSheet({ sales, onOpen }: { sales: BoardRow[] | null; onOpen: (r: BoardRow) => void }) {
+  const [filter, setFilter] = useState<BoardFilter>("open");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "updated", desc: true });
+  const onSort = (k: SortKey) => setSort((s) => ({ key: k, desc: s.key === k ? !s.desc : k === "updated" || k === "amount" || k === "days" }));
+
+  const q = search.trim().toLowerCase();
+  const value = (r: BoardRow, k: SortKey): string | number =>
+    k === "ref" ? r.ref
+    : k === "customer" ? (r.customer || "").toLowerCase()
+    : k === "service" ? serviceLabel(r.service)
+    : k === "stage" ? stageIndex(r.stage)
+    : k === "turn" ? r.whose_turn
+    : k === "amount" ? r.amount_cents ?? 0
+    : k === "days" ? daysSince(r.since)
+    : r.updated_at ?? "";
+  const rows = (sales ?? [])
+    .filter((r) => inBoard(r, filter))
+    .filter((r) => !q || [r.ref, r.customer, r.email, serviceLabel(r.service), stageLabel(r.stage), r.headline].some((v) => (v ?? "").toLowerCase().includes(q)))
+    .sort((x, y) => {
+      const a = value(x, sort.key), b = value(y, sort.key);
+      const c = a < b ? -1 : a > b ? 1 : 0;
+      return sort.desc ? -c : c;
+    });
+
+  function downloadCsv() {
+    const head = ["Ref", "Customer", "Email", "Service", "Stage", "Step", "Whose turn", "Next step", "Detail", "Amount", "Days in stage", "Last change"];
+    const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const lines = rows.map((r) =>
+      [r.ref, r.customer, r.email, serviceLabel(r.service), stageLabel(r.stage), r.step, TURN_STYLE[r.whose_turn][0], r.headline, r.detail,
+        r.amount_cents ? (r.amount_cents / 100).toFixed(2) : "", daysSince(r.since), shortDate(r.updated_at)].map(cell).join(","));
+    const blob = new Blob([[head.map(cell).join(","), ...lines].join("\n")], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `sohosuccess-sales-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  return (
+    <section className={card}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-white/60">
+          <span className="relative flex h-2 w-2" aria-hidden>
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+          </span>
+          All sales · live
+        </h2>
+        <div className="flex items-center gap-2">
+          <input
+            className={`${input} !h-9 !w-64 !py-1 text-sm`}
+            placeholder="Search name, email, ref…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search sales"
+          />
+          <button type="button" className={`${btnSecondary} h-9 px-3 py-1 text-xs`} onClick={downloadCsv} disabled={!rows.length}>
+            Download CSV
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2" role="tablist">
+        {BOARD_FILTERS.map((f) => (
           <button
             key={f.key}
             role="tab"
             aria-selected={filter === f.key}
             onClick={() => setFilter(f.key)}
-            className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
+            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
               filter === f.key ? "border-cyan-400 bg-cyan-400 text-slate-950" : "border-white/15 text-white/70 hover:bg-white/5"
             }`}
           >
-            {f.label}
+            {f.label} · {(sales ?? []).filter((r) => inBoard(r, f.key)).length}
           </button>
         ))}
       </div>
 
-      {error ? <p className="text-rose-300">{error}</p> : null}
-      {!rows ? (
-        <p className="text-white/50">Loading…</p>
-      ) : rows.length === 0 ? (
-        <div className={card}>
-          <p className="text-white/60">Nothing here. New requests from the app show up under “Needs pricing”.</p>
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {rows.map((r) => (
-            <li key={r.id}>
-              <button onClick={() => setOpen(r.id)} className={`${card} block w-full text-left transition hover:bg-white/[0.07]`}>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-white/40">
-                    {r.number} · {new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  </span>
-                  <Pill status={r.status} />
-                </div>
-                <p className="mt-2 font-bold text-white">{r.clients?.name ?? "Customer"}</p>
-                <p className="text-sm text-white/60">{r.title}</p>
-                <p className="mt-2 text-lg font-extrabold text-white">{money(total(r.estimate_items))}</p>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/50">
+        <span><span className="text-emerald-300">✓</span> done</span>
+        <span><span className="text-cyan-300">●</span> now · your move</span>
+        <span><span className="text-violet-300">●</span> now · customer&apos;s move</span>
+        <span>Click a row to open it. Click a column name to sort.</span>
+      </p>
 
-      <Team sb={sb} me={email} />
-    </div>
+      {!sales ? (
+        <p className="mt-4 text-sm text-white/50">Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className="mt-4 text-sm text-white/50">{q ? "No sales match your search." : filter === "you" ? "Nothing is waiting on you right now." : "No sales in this list."}</p>
+      ) : (
+        <div className="mt-3 max-h-[70vh] overflow-auto rounded-xl border border-white/10">
+          <table className="w-full min-w-[1500px] border-separate border-spacing-0 text-left text-sm">
+            <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase tracking-wide text-white/50">
+              <tr>
+                <Th sort={sort} onSort={onSort} k="ref" extra="sticky left-0 z-20 w-[112px] min-w-[112px] bg-slate-900">Ref</Th>
+                <Th sort={sort} onSort={onSort} k="customer" extra="sticky left-[112px] z-20 min-w-[180px] border-r bg-slate-900">Customer</Th>
+                <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 font-semibold">Email</th>
+                <Th sort={sort} onSort={onSort} k="service">Service</Th>
+                {STAGES.map((st) => (
+                  <th key={st.key} className="whitespace-nowrap border-b border-l border-white/10 px-2 py-2 text-center font-semibold">
+                    {st.label}
+                  </th>
+                ))}
+                <Th sort={sort} onSort={onSort} k="turn">Whose turn</Th>
+                <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 font-semibold">Next step</th>
+                <Th sort={sort} onSort={onSort} k="amount" right>Amount</Th>
+                <Th sort={sort} onSort={onSort} k="days" right>Days in stage</Th>
+                <Th sort={sort} onSort={onSort} k="updated">Last change</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const at = stageIndex(r.stage);
+                const mine = r.whose_turn === "you";
+                return (
+                  <tr
+                    key={r.ref}
+                    onClick={() => onOpen(r)}
+                    className={`cursor-pointer transition hover:bg-white/[0.05] ${mine ? "bg-cyan-400/[0.04]" : ""}`}
+                  >
+                    <td className="sticky left-0 z-[5] w-[112px] min-w-[112px] whitespace-nowrap border-b border-white/5 bg-[#0f1220] px-3 py-2 font-mono text-xs text-white/70">{r.ref}</td>
+                    <td className="sticky left-[112px] z-[5] min-w-[180px] whitespace-nowrap border-b border-r border-white/10 bg-[#0f1220] px-3 py-2 font-bold text-white">{r.customer || "New customer"}</td>
+                    <td className="whitespace-nowrap border-b border-white/5 px-3 py-2 text-white/60">{r.email ?? "—"}</td>
+                    <td className="whitespace-nowrap border-b border-white/5 px-3 py-2 text-white/80">{serviceLabel(r.service)}</td>
+                    {STAGES.map((st, i) => {
+                      const now = i === at;
+                      const done = i < at || (r.stage === "done" && now);
+                      return (
+                        <td
+                          key={st.key}
+                          title={now ? `${st.label}: ${r.headline}` : st.label}
+                          className={`border-b border-l border-white/5 px-2 py-2 text-center ${
+                            now && r.stage !== "done" ? (mine ? "bg-cyan-400/15 font-bold text-cyan-300" : "bg-violet-400/15 font-bold text-violet-300") : ""
+                          }`}
+                        >
+                          {done ? <span className="text-emerald-300">✓</span> : now ? "●" : <span className="text-white/10">·</span>}
+                        </td>
+                      );
+                    })}
+                    <td className="whitespace-nowrap border-b border-white/5 px-3 py-2">
+                      <span className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${TURN_STYLE[r.whose_turn][1]}`}>{TURN_STYLE[r.whose_turn][0]}</span>
+                    </td>
+                    <td className="min-w-[220px] border-b border-white/5 px-3 py-2 text-white/80">
+                      {r.headline}
+                      {r.detail ? <span className="block text-xs text-white/40">{r.detail}</span> : null}
+                    </td>
+                    <td className="whitespace-nowrap border-b border-white/5 px-3 py-2 text-right font-bold text-white">{r.amount_cents ? money(r.amount_cents) : "—"}</td>
+                    <td className="whitespace-nowrap border-b border-white/5 px-3 py-2 text-right text-white/60">{daysSince(r.since)}</td>
+                    <td className="whitespace-nowrap border-b border-white/5 px-3 py-2 text-white/50">{shortDate(r.updated_at)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -441,6 +632,7 @@ function EstimateEditor({ sb, id, onClose }: { sb: SupabaseClient; id: string; o
     deposit_percent: number;
     valid_until: string | null;
     est_duration: string;
+    service: string | null;
     clients: { name: string } | null;
   } | null>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -452,7 +644,7 @@ function EstimateEditor({ sb, id, onClose }: { sb: SupabaseClient; id: string; o
   useEffect(() => {
     (async () => {
       const [{ data: e }, { data: its }, { data: r }] = await Promise.all([
-        sb.from("estimates").select("number, title, notes, status, deposit_percent, valid_until, est_duration, clients(name)").eq("id", id).single(),
+        sb.from("estimates").select("number, title, notes, status, deposit_percent, valid_until, est_duration, service, clients(name)").eq("id", id).single(),
         sb.from("estimate_items").select("id, description, quantity, unit_cents").eq("estimate_id", id).order("sort_order"),
         sb.from("estimate_requests").select("name, email, phone, business, notes, source, created_at, site_address, site_zip, rooms, survey").eq("estimate_id", id).maybeSingle(),
       ]);
@@ -523,7 +715,7 @@ function EstimateEditor({ sb, id, onClose }: { sb: SupabaseClient; id: string; o
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold text-white/40">{est.number}</p>
+          <p className="text-xs font-bold text-white/40">{serviceLabel(est.service)} · {est.number}</p>
           <h1 className="text-2xl font-extrabold text-white">{est.clients?.name ?? "Customer"}</h1>
         </div>
         <Pill status={est.status} />
