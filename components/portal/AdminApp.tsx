@@ -8,6 +8,8 @@ import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { getAdminSupabase } from "@/lib/supabase";
 import { money } from "@/lib/portal";
 import { btnPrimary, btnSecondary, card, input, label } from "./Page";
+import RoomPlanView, { type PlanRoom } from "@/components/portal/RoomPlanView";
+import AdminJob from "@/components/portal/AdminJob";
 
 type Status = "draft" | "sent" | "accepted" | "declined" | "expired";
 type Item = { id?: string; description: string; quantity: number; unit_cents: number };
@@ -42,6 +44,8 @@ type BoardRow = {
   updated_at: string | null;
   estimate_id: string | null;
 };
+/** Stages where the sale is a job: clicking it opens the job screen (same as the app). */
+const JOB_STAGES = ["times_pending", "pick_time", "booked", "working", "approve", "final", "review"];
 /** Every stage a sale moves through, in order (Supabase sale_rows sets sales_board.stage). */
 const STAGES: { key: string; label: string; who: "you" | "customer" | "-" }[] = [
   { key: "request", label: "Request", who: "you" },
@@ -79,7 +83,7 @@ const TURN_STYLE: Record<BoardRow["whose_turn"], [string, string]> = {
 };
 const daysSince = (iso: string | null) => (iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)) : 0);
 type Photo = { path: string; kind: string; note: string; text?: string[]; outdoor?: boolean; sees?: string[] };
-type Room = { name?: string; width_ft: number; length_ft: number; area_sqft: number; doors: number; windows: number; manual?: boolean };
+type Room = PlanRoom & { name?: string; area_sqft: number; doors: number; windows: number; manual?: boolean };
 type Request = {
   name: string;
   email: string;
@@ -365,6 +369,7 @@ function Team({ sb, me }: { sb: SupabaseClient; me: string }) {
 function Admin({ sb, email }: { sb: SupabaseClient; email: string }) {
   const [sales, setSales] = useState<BoardRow[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [job, setJob] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [tick, setTick] = useState(0);
@@ -393,6 +398,22 @@ function Admin({ sb, email }: { sb: SupabaseClient; email: string }) {
     };
   }, [sb]);
 
+  if (job && !open) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <AdminJob
+          sb={sb}
+          jobRef={job}
+          onOpenEstimate={(id) => setOpen(id)}
+          onClose={() => {
+            setJob(null);
+            load();
+          }}
+        />
+      </div>
+    );
+  }
+
   if (open) {
     return (
       <div className="mx-auto max-w-3xl">
@@ -410,6 +431,8 @@ function Admin({ sb, email }: { sb: SupabaseClient; email: string }) {
 
   // Open a board row: its estimate (a request gets its draft estimate made first).
   async function openSale(r: BoardRow) {
+    // After the customer accepts: the job (offer times, start, finish). Before: the estimate.
+    if (JOB_STAGES.includes(r.stage)) return setJob(r.ref);
     if (r.estimate_id) return setOpen(r.estimate_id);
     const { data, error: e } = await sb.rpc("admin_open_ref", { p_ref: r.ref });
     if (e || !data) return setError(e?.message ?? `Couldn't open ${r.ref}.`);
@@ -548,8 +571,6 @@ function SalesSheet({ sales, onOpen }: { sales: BoardRow[] | null; onOpen: (r: B
 
       {!sales ? (
         <p className="mt-4 text-sm text-white/50">Loading…</p>
-      ) : rows.length === 0 ? (
-        <p className="mt-4 text-sm text-white/50">{q ? "No sales match your search." : filter === "you" ? "Nothing is waiting on you right now." : "No sales in this list."}</p>
       ) : (
         <div className="mt-3 max-h-[70vh] overflow-auto rounded-xl border border-white/10">
           <table className="w-full min-w-[1500px] border-separate border-spacing-0 text-left text-sm">
@@ -572,6 +593,15 @@ function SalesSheet({ sales, onOpen }: { sales: BoardRow[] | null; onOpen: (r: B
               </tr>
             </thead>
             <tbody>
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={STAGES.length + 9} className="px-3 py-10 text-left text-sm text-white/50">
+                    <span className="sticky left-3">
+                      {q ? "No sales match your search." : filter === "you" ? "Nothing is waiting on you right now." : "No sales in this list yet."}
+                    </span>
+                  </td>
+                </tr>
+              ) : null}
               {rows.map((r) => {
                 const at = stageIndex(r.stage);
                 const mine = r.whose_turn === "you";
@@ -747,13 +777,14 @@ function EstimateEditor({ sb, id, onClose }: { sb: SupabaseClient; id: string; o
           {req.rooms?.length ? (
             <div>
               <p className={label}>Rooms ({req.rooms.reduce((s, r) => s + r.area_sqft, 0).toLocaleString()} sq ft)</p>
-              <ul className="space-y-1 text-sm text-white/80">
+              <ul className="space-y-3 text-sm text-white/80">
                 {req.rooms.map((r, i) => (
                   <li key={i}>
                     {r.name || `Room ${i + 1}`}: {r.width_ft} × {r.length_ft} ft · {r.area_sqft} sq ft
                     {r.doors ? ` · ${r.doors} doors` : ""}
                     {r.windows ? ` · ${r.windows} windows` : ""}
                     {r.manual ? " (typed)" : " (scanned)"}
+                    <RoomPlanView room={r} />
                   </li>
                 ))}
               </ul>
