@@ -23,7 +23,16 @@ export default function ITSection() {
         </p>
       </div>
 
-      <div className="relative z-10 grid md:grid-cols-2 gap-6 mt-12">
+      <div className="relative z-10 mt-12 max-w-4xl mx-auto glass rounded-2xl overflow-hidden shimmer-border">
+        <img
+          src="/projects/web/network-buildout-devices.jpg"
+          alt="Office network status on laptop, tablet and phone"
+          loading="lazy"
+          className="w-full aspect-[16/10] object-cover"
+        />
+      </div>
+
+      <div className="relative z-10 grid md:grid-cols-2 gap-6 mt-6">
         <div className="glass card-lift rounded-2xl p-7 shimmer-border flex flex-col service-card">
           <div className="icon-ring mb-5">
             <i className="fa-solid fa-network-wired"></i>

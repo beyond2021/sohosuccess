@@ -38,7 +38,7 @@ export default function WebSection({ projects }: WebSectionProps) {
       </div>
 
       {/* Added h-full behavior to children by default using grid */}
-      <div className="relative z-10 grid sm:grid-cols-2 lg:grid-cols-5 gap-6 mt-12 items-stretch">
+      <div className="relative z-10 grid sm:grid-cols-2 gap-6 mt-12 items-stretch">
         {projects.map(({ slug, frontmatter }) => (
           /* HTML forbids an <a> inside an <a>, so the card is a div holding two
              sibling links: the body goes to the case study, the corner icon goes
@@ -68,11 +68,12 @@ export default function WebSection({ projects }: WebSectionProps) {
                          transition-shadow duration-300 hover:no-underline
                          hover:shadow-[0_12px_30px_-10px_rgba(124,58,237,0.6)]"
             >
-              {/* Image Container: Preserves 4/5 ratio strictly */}
-              <div className="relative aspect-[4/5] w-full bg-white/5 shrink-0">
+              {/* Laptop + tablet + phone picture, 16:10, shown whole */}
+              <div className="relative aspect-[16/10] w-full bg-white/5 shrink-0">
                 <img
                   src={frontmatter.image || FALLBACK}
-                  alt={frontmatter.title}
+                  alt={`${frontmatter.title} on laptop, tablet and phone`}
+                  loading="lazy"
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     e.currentTarget.src = FALLBACK;

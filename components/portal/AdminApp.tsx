@@ -22,7 +22,7 @@ const SERVICE_LABEL: Record<string, string> = {
   app: "App",
   intercom: "Entry & intercom",
   pos: "Restaurant POS",
-  media: "Media room",
+  media: "Conference room & media",
   other: "Other",
 };
 const serviceLabel = (s: string | null | undefined) => (s ? SERVICE_LABEL[s] ?? s : "Other");
@@ -66,16 +66,17 @@ type SortKey = "ref" | "customer" | "service" | "stage" | "turn" | "amount" | "d
 const shortDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—";
 const BOARD_FILTERS = [
+  { key: "all", label: "All" },
   { key: "pricing", label: "Needs pricing" },
   { key: "you", label: "Your turn" },
   { key: "customer", label: "Customer's turn" },
   { key: "open", label: "All open" },
-  { key: "done", label: "Done" },
+  { key: "done", label: "Jobs done" },
 ] as const;
 type BoardFilter = (typeof BOARD_FILTERS)[number]["key"];
 // Every list comes from the same place: the board Supabase keeps (sales_board).
 const inBoard = (r: BoardRow, k: BoardFilter) =>
-  k === "pricing" ? r.stage === "request" : k === "done" ? r.stage === "done" : k === "open" ? r.stage !== "done" : r.whose_turn === k && r.stage !== "done";
+  k === "all" ? true : k === "pricing" ? r.stage === "request" : k === "done" ? r.stage === "done" : k === "open" ? r.stage !== "done" : r.whose_turn === k && r.stage !== "done";
 const TURN_STYLE: Record<BoardRow["whose_turn"], [string, string]> = {
   you: ["Your turn", "text-cyan-300 border-cyan-400/50"],
   customer: ["Customer", "text-violet-300 border-violet-400/50"],
@@ -484,7 +485,7 @@ function Th({ k, sort, onSort, children, right, extra = "" }: {
 
 /** Every sale as one row, every stage as a column: ✓ done, ● where it is now, blank still to come. */
 function SalesSheet({ sales, onOpen }: { sales: BoardRow[] | null; onOpen: (r: BoardRow) => void }) {
-  const [filter, setFilter] = useState<BoardFilter>("open");
+  const [filter, setFilter] = useState<BoardFilter>("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "updated", desc: true });
   const onSort = (k: SortKey) => setSort((s) => ({ key: k, desc: s.key === k ? !s.desc : k === "updated" || k === "amount" || k === "days" }));
