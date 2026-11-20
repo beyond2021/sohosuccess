@@ -4,7 +4,7 @@
 // app's Admin → Job screen (job_by_ref, propose_times, start_job, finish_job).
 import { useEffect, useMemo, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { btnPrimary, btnSecondary, card, input, label } from "./Page";
+import { BackBar, btnPrimary, btnSecondary, card, input, label } from "./Page";
 
 type Job = {
   id: string;
@@ -46,6 +46,7 @@ export default function AdminJob({ sb, jobRef, onClose, onOpenEstimate }: { sb: 
   const [job, setJob] = useState<Job | null>(null);
   const [client, setClient] = useState("Customer");
   const [depositPaid, setDepositPaid] = useState(true);
+  const [finalDue, setFinalDue] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -73,14 +74,16 @@ export default function AdminJob({ sb, jobRef, onClose, onOpenEstimate }: { sb: 
       if (!live) return;
       if (e || !j) return setError(e?.message ?? "Job not found.");
       const jj = j as Job;
-      const [{ data: c }, { data: due }] = await Promise.all([
+      const [{ data: c }, { data: due }, { data: finalOpen }] = await Promise.all([
         sb.from("clients").select("name").eq("id", jj.client_id).maybeSingle(),
         sb.from("invoices").select("id").eq("estimate_id", jj.estimate_id).eq("kind", "deposit").in("status", ["due", "overdue"]),
+        sb.from("invoices").select("id").eq("estimate_id", jj.estimate_id).eq("kind", "final").in("status", ["due", "overdue"]),
       ]);
       if (!live) return;
       setJob(jj);
       setClient((c as { name?: string } | null)?.name ?? "Customer");
       setDepositPaid(!(due ?? []).length);
+      setFinalDue(!!(finalOpen ?? []).length);
       setError(null);
     })();
     return () => {
@@ -102,9 +105,11 @@ export default function AdminJob({ sb, jobRef, onClose, onOpenEstimate }: { sb: 
   }
 
   const back = (
-    <button onClick={onClose} className="text-sm font-semibold text-cyan-300 hover:text-cyan-200">
-      ← All sales
-    </button>
+    <BackBar>
+      <button onClick={onClose} className="text-sm font-semibold text-cyan-300 hover:text-cyan-200">
+        ← All sales
+      </button>
+    </BackBar>
   );
   if (error) return <div className="space-y-4">{back}<p className="text-rose-300">{error}</p></div>;
   if (!job) return <div className="space-y-4">{back}<p className="text-white/50">Loading…</p></div>;
@@ -126,7 +131,10 @@ export default function AdminJob({ sb, jobRef, onClose, onOpenEstimate }: { sb: 
           <h1 className="text-3xl font-extrabold text-white">{client}</h1>
           <p className="mt-1 text-white/70">{job.title}</p>
         </div>
-        <span className="rounded-full border border-cyan-400/60 px-3 py-1 text-sm font-bold text-cyan-300">{STATUS[job.status]}</span>
+        <span className="rounded-full border border-cyan-400/60 px-3 py-1 text-sm font-bold text-cyan-300">
+          {/* "completed" in Supabase = the customer approved the work. It's only done once the final payment is in. */}
+          {job.status === "completed" ? (finalDue ? "Approved · waiting for final payment" : "Paid in full") : STATUS[job.status]}
+        </span>
       </div>
       <button onClick={() => onOpenEstimate(job.estimate_id)} className="text-sm font-semibold text-white/60 underline hover:text-white">
         View the estimate, photos and floor plan
@@ -141,7 +149,7 @@ export default function AdminJob({ sb, jobRef, onClose, onOpenEstimate }: { sb: 
 
       {job.scheduled_start ? (
         <section className={card}>
-          <p className={label}>Booked</p>
+          <p className={label}>{job.status === "scheduled" ? "Booked" : "Job date"}</p>
           <p className="text-xl font-bold text-white">{when(job.scheduled_start)}</p>
           {job.est_duration ? <p className="text-sm text-white/50">{job.est_duration}</p> : null}
         </section>

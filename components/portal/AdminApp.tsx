@@ -7,7 +7,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { getAdminSupabase } from "@/lib/supabase";
 import { money } from "@/lib/portal";
-import { btnPrimary, btnSecondary, card, input, label } from "./Page";
+import { BackBar, btnPrimary, btnSecondary, card, input, label } from "./Page";
 import RoomPlanView, { type PlanRoom } from "@/components/portal/RoomPlanView";
 import AdminJob from "@/components/portal/AdminJob";
 
@@ -20,10 +20,10 @@ const SERVICE_LABEL: Record<string, string> = {
   internet: "Office internet",
   website: "Website",
   app: "App",
-  intercom: "Entry & intercom",
-  pos: "Restaurant POS",
   media: "Conference room & media",
-  other: "Other",
+  computers: "Computer repair",
+  other: "Miscellaneous",
+  custom: "Miscellaneous",
 };
 const serviceLabel = (s: string | null | undefined) => (s ? SERVICE_LABEL[s] ?? s : "Other");
 /** One sale on the live board (Supabase table sales_board, updated by Supabase, sent live by Realtime). */
@@ -374,7 +374,40 @@ function Admin({ sb, email }: { sb: SupabaseClient; email: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const [tick, setTick] = useState(0);
-  const load = () => setTick((t) => t + 1);
+
+  // Sheet → job → estimate, kept in the browser history: the browser's Back button steps back one screen,
+  // and every page has a Back bar that stays on screen however far down you are.
+  type View = { job?: string | null; open?: string | null };
+  const show = (v: View) => {
+    setJob(v.job ?? null);
+    setOpen(v.open ?? null);
+    window.scrollTo(0, 0);
+  };
+  const go = (v: View) => {
+    window.history.pushState({ adminView: v }, "");
+    show(v);
+  };
+  const viewNow = (): View => (window.history.state?.adminView as View | undefined) ?? {};
+  const back = () => {
+    if (window.history.state?.adminView) window.history.back();
+    else show({});
+  };
+  const allSales = () => {
+    const v = viewNow();
+    if (v.job && v.open) window.history.go(-2);
+    else back();
+  };
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      const v = (e.state?.adminView as View | undefined) ?? {};
+      setJob(v.job ?? null);
+      setOpen(v.open ?? null);
+      setTick((t) => t + 1);
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -402,15 +435,7 @@ function Admin({ sb, email }: { sb: SupabaseClient; email: string }) {
   if (job && !open) {
     return (
       <div className="mx-auto max-w-3xl">
-        <AdminJob
-          sb={sb}
-          jobRef={job}
-          onOpenEstimate={(id) => setOpen(id)}
-          onClose={() => {
-            setJob(null);
-            load();
-          }}
-        />
+        <AdminJob sb={sb} jobRef={job} onOpenEstimate={(id) => go({ job, open: id })} onClose={back} />
       </div>
     );
   }
@@ -418,14 +443,7 @@ function Admin({ sb, email }: { sb: SupabaseClient; email: string }) {
   if (open) {
     return (
       <div className="mx-auto max-w-3xl">
-      <EstimateEditor
-        sb={sb}
-        id={open}
-        onClose={() => {
-          setOpen(null);
-          load();
-        }}
-      />
+      <EstimateEditor sb={sb} id={open} fromJob={job} onClose={back} onAllSales={allSales} />
       </div>
     );
   }
@@ -433,11 +451,11 @@ function Admin({ sb, email }: { sb: SupabaseClient; email: string }) {
   // Open a board row: its estimate (a request gets its draft estimate made first).
   async function openSale(r: BoardRow) {
     // After the customer accepts: the job (offer times, start, finish). Before: the estimate.
-    if (JOB_STAGES.includes(r.stage)) return setJob(r.ref);
-    if (r.estimate_id) return setOpen(r.estimate_id);
+    if (JOB_STAGES.includes(r.stage)) return go({ job: r.ref });
+    if (r.estimate_id) return go({ open: r.estimate_id });
     const { data, error: e } = await sb.rpc("admin_open_ref", { p_ref: r.ref });
     if (e || !data) return setError(e?.message ?? `Couldn't open ${r.ref}.`);
-    setOpen(data as string);
+    go({ open: data as string });
   }
   return (
     <div className="space-y-8">
@@ -654,7 +672,7 @@ function SalesSheet({ sales, onOpen }: { sales: BoardRow[] | null; onOpen: (r: B
 
 // ───────────────────────── One estimate ─────────────────────────
 
-function EstimateEditor({ sb, id, onClose }: { sb: SupabaseClient; id: string; onClose: () => void }) {
+function EstimateEditor({ sb, id, fromJob, onClose, onAllSales }: { sb: SupabaseClient; id: string; fromJob?: string | null; onClose: () => void; onAllSales: () => void }) {
   const [est, setEst] = useState<{
     number: string;
     title: string;
@@ -742,7 +760,16 @@ function EstimateEditor({ sb, id, onClose }: { sb: SupabaseClient; id: string; o
   const rec = req?.survey?.recorder;
   return (
     <div className="space-y-6">
-      <button onClick={onClose} className="text-sm font-semibold text-cyan-300 hover:text-cyan-200">← All estimates</button>
+      <BackBar>
+        <button onClick={onClose} className="text-sm font-semibold text-cyan-300 hover:text-cyan-200">
+          {fromJob ? `← Back to the job (${fromJob})` : "← All sales"}
+        </button>
+        {fromJob ? (
+          <button onClick={onAllSales} className="text-sm font-semibold text-white/60 hover:text-white">
+            All sales
+          </button>
+        ) : null}
+      </BackBar>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

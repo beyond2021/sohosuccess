@@ -26,3 +26,13 @@ export const btnSecondary =
 export const input =
   "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/30 outline-none transition focus:border-purple-400/60 focus:ring-2 focus:ring-purple-500/30";
 export const label = "mb-1.5 block text-sm font-semibold text-white/70";
+
+/** The way back: stays on screen under the site header while you scroll. */
+export function BackBar({ children }: { children: ReactNode }) {
+  return (
+    <div className="sticky top-[72px] z-40 -mx-4 flex items-center gap-5 border-b border-white/10 bg-[#0b0a14]/90 px-4 py-3 backdrop-blur md:top-[76px]">
+      {children}
+    </div>
+  );
+}
+
